@@ -17,7 +17,7 @@ cabal-version:       >=1.10
 
 executable haverer
   main-is:             Main.hs
-  -- other-modules:       
+  other-modules: Haverer.Deck
   -- other-extensions:    
   build-depends:       base >=4.7 && <4.8, random-shuffle, MonadRandom
   -- hs-source-dirs:      
