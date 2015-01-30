@@ -1,5 +1,6 @@
 module Haverer.Player (
   Error,
+  makePlayerSet,
   PlayerId,
   PlayerSet,
   toPlayers,
