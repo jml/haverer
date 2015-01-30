@@ -2,6 +2,7 @@ module Haverer.Player (
   Error,
   PlayerId,
   PlayerSet,
+  toPlayers,
   ) where
 
 import Data.List (nub, sort)
@@ -17,6 +18,9 @@ data Error = InvalidNumPlayers Int | DuplicatePlayers
 
 
 newtype PlayerSet = PlayerSet [PlayerId] deriving (Show)
+
+toPlayers :: PlayerSet -> [PlayerId]
+toPlayers (PlayerSet xs) = xs
 
 toPlayerSet :: [PlayerId] -> Either Error PlayerSet
 toPlayerSet playerIds =
