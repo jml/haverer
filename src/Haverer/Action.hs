@@ -18,25 +18,25 @@ data Action =
   EliminateOnGuess PlayerId Card
 
 
-data BadPlay = BadActionForCard Play Card | BadGuess
+data BadPlay = BadActionForCard Play Card | BadGuess | SelfTarget
 
 
 playToAction :: PlayerId -> Card -> Play -> Either BadPlay Action
 playToAction _ Soldier (Guess _ Soldier) = Left BadGuess
 playToAction _ Soldier (Guess target guess) = Right $ EliminateOnGuess target guess
-playToAction player Clown (Attack target) = Right $ ForceReveal source target
-playToAction player Knight (Attack target) = Right $ EliminateWeaker source target
+playToAction player Clown (Attack target) = Right $ ForceReveal player target
+playToAction player Knight (Attack target) = Right $ EliminateWeaker player target
 playToAction player Priestess NoEffect = Right $ Protect player
 playToAction _ Wizard (Attack target) = Right $ ForceDiscard target
 playToAction player General (Attack target) = Right $ SwapHands player target
 playToAction _ Minister NoEffect = Right $ NoChange
-playToAction player Princess NoChange = Right $ EliminatePlayer player
+playToAction player Prince NoEffect = Right $ EliminatePlayer player
 playToAction _ card play = Left (BadActionForCard play card)
 
 
 getTarget :: Action -> Maybe PlayerId
 getTarget NoChange = Nothing
-getTarget Protect = Nothing
+getTarget (Protect _) = Nothing
 getTarget (SwapHands _ x) = Just x
 getTarget (EliminatePlayer x) = Just x
 getTarget (ForceDiscard x) = Just x
