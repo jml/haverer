@@ -1,4 +1,6 @@
-module Haverer.Action where
+module Haverer.Action (
+  Action(..),
+  ) where
 
 import Haverer.Deck
 import Haverer.Player

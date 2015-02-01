@@ -1,4 +1,4 @@
-module Haverer.Round where
+module Haverer.Round () where
 
 import qualified Data.Map as Map
 
