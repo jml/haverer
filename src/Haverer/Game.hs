@@ -1,6 +1,6 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
-module Haverer.Round where
+module Haverer.Game where
 
 import qualified Haverer.Counter as Counter
 import Haverer.Player
