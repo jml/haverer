@@ -30,20 +30,21 @@ data Action =
 data BadPlay = BadActionForCard Play Card | BadGuess | SelfTarget deriving Show
 
 
--- XXX: Actually don't want external clients using playToAction. Want them
--- using (playToAction >>= validateAction).
-
 playToAction :: PlayerId -> Card -> Play -> Either BadPlay Action
-playToAction _ Soldier (Guess _ Soldier) = Left BadGuess
-playToAction _ Soldier (Guess target guess) = Right $ EliminateOnGuess target guess
-playToAction player Clown (Attack target) = Right $ ForceReveal player target
-playToAction player Knight (Attack target) = Right $ EliminateWeaker player target
-playToAction player Priestess NoEffect = Right $ Protect player
-playToAction _ Wizard (Attack target) = Right $ ForceDiscard target
-playToAction player General (Attack target) = Right $ SwapHands player target
-playToAction _ Minister NoEffect = Right $ NoChange
-playToAction player Prince NoEffect = Right $ EliminatePlayer player
-playToAction _ card play = Left (BadActionForCard play card)
+playToAction pid card play = _playToAction pid card play >>= validateAction pid
+
+
+_playToAction :: PlayerId -> Card -> Play -> Either BadPlay Action
+_playToAction _ Soldier (Guess _ Soldier) = Left BadGuess
+_playToAction _ Soldier (Guess target guess) = Right $ EliminateOnGuess target guess
+_playToAction player Clown (Attack target) = Right $ ForceReveal player target
+_playToAction player Knight (Attack target) = Right $ EliminateWeaker player target
+_playToAction player Priestess NoEffect = Right $ Protect player
+_playToAction _ Wizard (Attack target) = Right $ ForceDiscard target
+_playToAction player General (Attack target) = Right $ SwapHands player target
+_playToAction _ Minister NoEffect = Right $ NoChange
+_playToAction player Prince NoEffect = Right $ EliminatePlayer player
+_playToAction _ card play = Left (BadActionForCard play card)
 
 
 getTarget :: Action -> Maybe PlayerId
