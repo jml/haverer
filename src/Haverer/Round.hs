@@ -1,7 +1,7 @@
 module Haverer.Round (applyAction, newRound) where
 
 import qualified Data.Map as Map
-import Haverer.Action (Action(..))
+import Haverer.Action (Action(..), Play, playToAction)
 import Haverer.Deck (Card, Complete, Deck, deal, Incomplete, pop)
 import Haverer.Player (
   discardAndDraw,
@@ -64,6 +64,28 @@ applyAction r (EliminateOnGuess pid guess) =
   case getHand p of
    Nothing -> Nothing
    Just card -> if card == guess then eliminate p else Just p
+
+
+-- XXX: No way to send Clown / ForceReveal results
+-- XXX: No way for communicating busting out due to minister
+-- XXX: End round when only one player left
+-- XXX: End round when no cards left
+
+thingy :: Round -> (Card -> (Card, Play)) -> Either BadAction (Round, Action)
+thingy r f =
+  let playerId = (Map.keys $ _players r) !! 0
+      (r2, drawn) = drawCard r
+  in
+   case drawn of
+    Nothing -> undefined  -- XXX: Out of cards, end of round
+    Just card ->
+      let (chosen, play) = f card  -- XXX: Only allows for deterministic agent based on card dealt
+          action = playToAction playerId chosen play
+      in
+       case action of
+        Left e -> undefined  -- XXX: Bad play. Translate to error type.
+        Right a -> fmap (\r3 -> (r3, a)) (applyAction r2 a)
+
 
 
 adjustPlayer :: Round -> PlayerId -> (Player -> Maybe Player) -> Either BadAction Round
