@@ -1,4 +1,4 @@
-module Haverer.Round (applyAction, newRound, thingy) where
+module Haverer.Round (newRound, thingy) where
 
 import qualified Data.Map as Map
 import Haverer.Action (Action(..), Play, playToAction)
@@ -115,6 +115,7 @@ thingy r chosen play =
      in
       case action of
        Left _ -> undefined  -- XXX: Bad play. Translate to error type.
+       -- XXX: Need to advance to next turn also
        Right a -> fmap (\r2 -> (r2, a)) (applyAction r a)
 
 

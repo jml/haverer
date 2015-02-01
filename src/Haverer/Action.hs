@@ -11,6 +11,10 @@ import Haverer.Player
 data Play = NoEffect | Attack PlayerId | Guess PlayerId Card deriving Show
 
 
+-- XXX: Currently expose all of these constructors for pattern matching.
+-- However, would ideally prefer only *validated* actions to be allowed to be
+-- created. I *think* this is the case where phantom types will help.
+
 data Action =
   NoChange |
   Protect PlayerId |
@@ -20,10 +24,14 @@ data Action =
   ForceReveal PlayerId PlayerId |
   EliminateWeaker PlayerId PlayerId |
   EliminateOnGuess PlayerId Card
+  deriving Show
 
 
 data BadPlay = BadActionForCard Play Card | BadGuess | SelfTarget deriving Show
 
+
+-- XXX: Actually don't want external clients using playToAction. Want them
+-- using (playToAction >>= validateAction).
 
 playToAction :: PlayerId -> Card -> Play -> Either BadPlay Action
 playToAction _ Soldier (Guess _ Soldier) = Left BadGuess
