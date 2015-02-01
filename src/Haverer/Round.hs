@@ -1,7 +1,6 @@
-module Haverer.Round () where
+module Haverer.Round (applyAction, newRound) where
 
 import qualified Data.Map as Map
-
 import Haverer.Action (Action(..))
 import Haverer.Deck (Card, Complete, Deck, deal, Incomplete, pop)
 import Haverer.Player (
@@ -22,7 +21,7 @@ data Round = Round {
   _stack :: Deck Incomplete,
   _players :: Map.Map PlayerId Player,
   _current :: Maybe PlayerId
-}
+} deriving Show
 
 newRound :: Deck Complete -> PlayerSet -> Round
 newRound deck players =
@@ -35,8 +34,7 @@ newRound deck players =
   where playerList = toPlayers players
 
 
-
-data BadAction = NoSuchPlayer PlayerId | InactivePlayer PlayerId
+data BadAction = NoSuchPlayer PlayerId | InactivePlayer PlayerId deriving Show
 
 applyAction :: Round -> Action -> Either BadAction Round
 applyAction r NoChange = Right r
@@ -66,14 +64,6 @@ applyAction r (EliminateOnGuess pid guess) =
   case getHand p of
    Nothing -> Nothing
    Just card -> if card == guess then eliminate p else Just p
-
-
-
-replacePlayer :: Round -> PlayerId -> Player -> Either BadAction Round
-replacePlayer rnd@(Round { _players = players }) pid newP =
-  case Map.lookup pid players of
-   Nothing -> Left $ NoSuchPlayer pid
-   Just _ -> Right $ rnd { _players = Map.insert pid newP players }
 
 
 adjustPlayer :: Round -> PlayerId -> (Player -> Maybe Player) -> Either BadAction Round

@@ -1,12 +1,14 @@
 module Haverer.Action (
   Action(..),
+  Play(..),
+  playToAction,
   ) where
 
 import Haverer.Deck
 import Haverer.Player
 
 
-data Play = NoEffect | Attack PlayerId | Guess PlayerId Card
+data Play = NoEffect | Attack PlayerId | Guess PlayerId Card deriving Show
 
 
 data Action =
@@ -20,7 +22,7 @@ data Action =
   EliminateOnGuess PlayerId Card
 
 
-data BadPlay = BadActionForCard Play Card | BadGuess | SelfTarget
+data BadPlay = BadActionForCard Play Card | BadGuess | SelfTarget deriving Show
 
 
 playToAction :: PlayerId -> Card -> Play -> Either BadPlay Action
