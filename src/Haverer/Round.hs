@@ -19,19 +19,61 @@ import Haverer.Player (
 
 data Round = Round {
   _stack :: Deck Incomplete,
+  _playOrder :: [PlayerId],
   _players :: Map.Map PlayerId Player,
-  _current :: Maybe PlayerId
+  _current :: State
 } deriving Show
+
+
+data State = NotStarted | Turn Int Card | Over deriving Show
+
 
 newRound :: Deck Complete -> PlayerSet -> Round
 newRound deck players =
   case deal deck (length playerList) of
    (remainder, Just cards) -> Round {
      _stack = fst $ pop remainder,
-     _players = Map.fromList (zip playerList (map newPlayer cards)),
-     _current = Just (head playerList)
+     _playOrder = playerList,
+     _players = Map.fromList $ zip playerList (map newPlayer cards),
+     _current = NotStarted
      }
   where playerList = toPlayers players
+
+
+nextCard :: Round -> Maybe Card
+nextCard = snd . drawCard
+
+
+drawCard :: Round -> (Round, Maybe Card)
+drawCard r =
+  let (stack, card) = pop (_stack r) in
+  (r { _stack = stack }, card)
+
+
+currentPlayer :: Round -> Maybe PlayerId
+currentPlayer r = case _current r of
+  NotStarted -> Nothing
+  Over -> Nothing
+  Turn i _ -> Just (_playOrder r !! i)
+
+
+nextPlayer :: Round -> Maybe Int
+nextPlayer rnd =
+  case _current rnd of
+   Over -> Nothing
+   NotStarted -> Just 0
+   -- XXX: We want next *active* player
+   Turn i _ -> Just $ (i + 1) `mod` (length playOrder)
+  where playOrder = _playOrder rnd
+
+
+nextTurn :: Round -> Round
+nextTurn r@(Round { _current = Over }) = r
+nextTurn r =
+  case (drawCard r, nextPlayer r) of
+   ((r2, Just card), Just i) -> r2 { _current = Turn i card }
+   _ -> r { _current = Over }
+
 
 
 data BadAction = NoSuchPlayer PlayerId | InactivePlayer PlayerId deriving Show
@@ -71,20 +113,19 @@ applyAction r (EliminateOnGuess pid guess) =
 -- XXX: End round when only one player left
 -- XXX: End round when no cards left
 
-thingy :: Round -> (Card -> (Card, Play)) -> Either BadAction (Round, Action)
-thingy r f =
-  let playerId = (Map.keys $ _players r) !! 0
-      (r2, drawn) = drawCard r
-  in
-   case drawn of
-    Nothing -> undefined  -- XXX: Out of cards, end of round
-    Just card ->
-      let (chosen, play) = f card  -- XXX: Only allows for deterministic agent based on card dealt
-          action = playToAction playerId chosen play
-      in
-       case action of
-        Left e -> undefined  -- XXX: Bad play. Translate to error type.
-        Right a -> fmap (\r3 -> (r3, a)) (applyAction r2 a)
+
+thingy :: Round -> Card -> Play -> Either BadAction (Round, Action)
+thingy r chosen play =
+  case _current r of
+   NotStarted -> thingy (nextTurn r) chosen play
+   Over -> undefined
+   Turn i card ->  -- XXX: Need to verify that chosen card is allowed
+     let playerId = (_playOrder r !! i)
+         action = playToAction playerId chosen play
+     in
+      case action of
+       Left e -> undefined  -- XXX: Bad play. Translate to error type.
+       Right a -> fmap (\r2 -> (r2, a)) (applyAction r a)
 
 
 
@@ -103,8 +144,3 @@ getPlayer Round { _players = players } pid = Map.lookup pid players
 
 getPlayerHand :: Round -> PlayerId -> Maybe Card
 getPlayerHand r pid = getHand =<< getPlayer r pid
-
-drawCard :: Round -> (Round, Maybe Card)
-drawCard r =
-  let (stack, card) = pop (_stack r) in
-  (r { _stack = stack }, card)
