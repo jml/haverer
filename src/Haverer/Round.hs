@@ -1,4 +1,4 @@
-module Haverer.Round (applyAction, newRound) where
+module Haverer.Round (applyAction, newRound, thingy) where
 
 import qualified Data.Map as Map
 import Haverer.Action (Action(..), Play, playToAction)
@@ -40,21 +40,10 @@ newRound deck players =
   where playerList = toPlayers players
 
 
-nextCard :: Round -> Maybe Card
-nextCard = snd . drawCard
-
-
 drawCard :: Round -> (Round, Maybe Card)
 drawCard r =
   let (stack, card) = pop (_stack r) in
   (r { _stack = stack }, card)
-
-
-currentPlayer :: Round -> Maybe PlayerId
-currentPlayer r = case _current r of
-  NotStarted -> Nothing
-  Over -> Nothing
-  Turn i _ -> Just (_playOrder r !! i)
 
 
 nextPlayer :: Round -> Maybe Int
@@ -112,6 +101,7 @@ applyAction r (EliminateOnGuess pid guess) =
 -- XXX: No way for communicating busting out due to minister
 -- XXX: End round when only one player left
 -- XXX: End round when no cards left
+-- XXX: 'thingy' is a terrible name
 
 
 thingy :: Round -> Card -> Play -> Either BadAction (Round, Action)
@@ -119,14 +109,13 @@ thingy r chosen play =
   case _current r of
    NotStarted -> thingy (nextTurn r) chosen play
    Over -> undefined
-   Turn i card ->  -- XXX: Need to verify that chosen card is allowed
+   Turn i _ ->  -- XXX: Need to verify that chosen card is allowed
      let playerId = (_playOrder r !! i)
          action = playToAction playerId chosen play
      in
       case action of
-       Left e -> undefined  -- XXX: Bad play. Translate to error type.
+       Left _ -> undefined  -- XXX: Bad play. Translate to error type.
        Right a -> fmap (\r2 -> (r2, a)) (applyAction r a)
-
 
 
 adjustPlayer :: Round -> PlayerId -> (Player -> Maybe Player) -> Either BadAction Round
