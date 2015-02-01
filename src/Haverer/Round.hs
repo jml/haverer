@@ -27,11 +27,12 @@ data Round = Round {
 
 data State = NotStarted | Turn Int Card | Over deriving Show
 
+-- XXX: Enable complete pattern matching warnings
 
 newRound :: Deck Complete -> PlayerSet -> Round
 newRound deck players =
   case deal deck (length playerList) of
-   (remainder, Just cards) -> Round {
+   (remainder, Just cards) -> nextTurn $ Round {
      _stack = fst $ pop remainder,
      _playOrder = playerList,
      _players = Map.fromList $ zip playerList (map newPlayer cards),
@@ -115,8 +116,7 @@ thingy r chosen play =
      in
       case action of
        Left _ -> undefined  -- XXX: Bad play. Translate to error type.
-       -- XXX: Need to advance to next turn also
-       Right a -> fmap (\r2 -> (r2, a)) (applyAction r a)
+       Right a -> fmap (\r2 -> (nextTurn r2, a)) (applyAction r a)
 
 
 adjustPlayer :: Round -> PlayerId -> (Player -> Maybe Player) -> Either BadAction Round
