@@ -1,23 +1,28 @@
+{-# OPTIONS_GHC -fno-warn-orphans #-}
+
 import Test.Tasty
-import Test.Tasty.HUnit
 import Test.Tasty.QuickCheck
 
 
-arith :: Integer -> Integer -> Property
-arith x y = (x > 0) && (y > 0) ==> (x+y)^2 > x^2 + y^2
+import Haverer.Ring
 
-negation :: Integer -> Bool
-negation x = abs (x^2) >= x
+instance (Arbitrary a) => Arbitrary (Ring a) where
+  arbitrary = fmap newRing (listOf1 arbitrary)
+
+
+advanceLoops :: (Eq a) => Ring a -> Bool
+advanceLoops ring = ring == (iterate advance ring !! ringSize ring)
+
+recoverInput :: (Eq a) => NonEmptyList a -> Bool
+recoverInput (NonEmpty xs) = xs == take (length xs) (map currentItem (iterate advance (newRing xs)))
 
 suite :: TestTree
 suite = testGroup "Test Suite" [
-    testGroup "Units" [
-       testCase "Equality" $ True @=? True
-       , testCase "Assertion" $ assert $ (length [1,2,3]) == 3
-       ],
 
     testGroup "QuickCheck tests"
-    [ testProperty "Quickcheck test" arith ]
+    [ testProperty "advanceLoops" $ \x -> advanceLoops (x :: Ring Int)
+    , testProperty "recoverInput" $ \x -> recoverInput (x :: NonEmptyList Int)
+    ]
   ]
 
 main :: IO ()

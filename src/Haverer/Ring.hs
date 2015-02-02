@@ -13,7 +13,7 @@ data Ring a = Ring {
   _items :: [a],
   _current :: Int,
   _length :: Int
-  } deriving Show
+  } deriving (Show, Eq)
 
 
 newRing :: [a] -> Ring a
