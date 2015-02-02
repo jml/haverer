@@ -33,14 +33,16 @@ advanceBy n ring = ring {
 advance :: Ring a -> Ring a
 advance = advanceBy 1
 
-dropItem :: (Eq a) => Ring a -> a -> Ring a
+dropItem :: (Eq a) => Ring a -> a -> Maybe (Ring a)
 dropItem ring item =
   case span (/=item) (_items ring) of
+   (_, []) -> Just $ ring
+   ([], _:[]) -> Nothing
    (pre, _:xs) ->
      let newLength = _length ring - 1
          current = _current ring
      in
-     ring {
+     Just $ ring {
        _items = pre ++ xs,
        _length = newLength,
        _current =
@@ -48,7 +50,6 @@ dropItem ring item =
          then (if null xs then 0 else current - 1)
          else current
      }
-   (_, []) -> ring
 
 ringSize :: Ring a -> Int
 ringSize = _length
