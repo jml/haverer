@@ -29,6 +29,10 @@ data State = NotStarted | Turn Int Card | Over deriving Show
 
 -- XXX: Enable complete pattern matching warnings
 
+-- XXX: Possibly add burn card to structure?
+
+-- XXX: Write a few invariants.
+
 newRound :: Deck Complete -> PlayerSet -> Round
 newRound deck players =
   case deal deck (length playerList) of
@@ -47,6 +51,7 @@ drawCard r =
   (r { _stack = stack }, card)
 
 
+-- XXX: Use Ring here and make sure we delete players from it when eliminate
 nextPlayer :: Round -> Maybe Int
 nextPlayer rnd =
   case _current rnd of
@@ -134,3 +139,4 @@ getPlayer Round { _players = players } pid = Map.lookup pid players
 
 getPlayerHand :: Round -> PlayerId -> Maybe Card
 getPlayerHand r pid = getHand =<< getPlayer r pid
+
