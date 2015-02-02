@@ -3,6 +3,7 @@ module Haverer.Ring (
   , newRing
   , advance
   , dropItem
+  , nextItem
   , ringSize
   , currentItem
   ) where
@@ -54,6 +55,9 @@ ringSize = _length
 
 currentItem :: Ring a -> a
 currentItem ring = _items ring !! _current ring
+
+nextItem :: Ring a -> a
+nextItem = currentItem . advance
 
 -- XXX: (optional) enforce non-emptyness at the type level
 
