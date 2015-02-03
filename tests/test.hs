@@ -4,13 +4,14 @@ import Test.Tasty
 import Test.Tasty.QuickCheck
 
 import Control.Monad (foldM)
+import Data.Maybe (fromJust)
 import Data.List
 import Haverer.Ring
 
 -- XXX: Move ring tests to separate module
 
 instance (Arbitrary a) => Arbitrary (Ring a) where
-  arbitrary = fmap newRing (listOf1 arbitrary)
+  arbitrary = fmap (fromJust . newRing) (listOf1 arbitrary)
 
 
 -- If we advance as many times as there are items, we end up at the start.
@@ -19,7 +20,7 @@ advanceLoops ring = ring == (iterate advance ring !! ringSize ring)
 
 -- We can retrieve all of the inputs to a ring by advancing through the ring.
 recoverInput :: (Eq a) => NonEmptyList a -> Bool
-recoverInput (NonEmpty xs) = xs == retrieveItems (newRing xs)
+recoverInput (NonEmpty xs) = xs == (retrieveItems . fromJust . newRing) xs
 
 -- Helper: get all items in ring
 retrieveItems :: Ring a -> [a]
@@ -34,7 +35,7 @@ dropping r x =
 
 -- Dropping the last item in a ring returns Nothing.
 dropLast :: (Eq a) => a -> Bool
-dropLast x = dropItem (newRing [x]) x == Nothing
+dropLast x = dropItem (fromJust (newRing [x])) x == Nothing
 
 -- Helper: Is x the only item in ring r?
 isOnlyItem :: Eq a => Ring a -> a -> Bool

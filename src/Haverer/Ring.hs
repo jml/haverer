@@ -16,9 +16,9 @@ data Ring a = Ring {
   } deriving (Show, Eq)
 
 
-newRing :: [a] -> Ring a
-newRing [] = error "Must not be empty"
-newRing xs = Ring {
+newRing :: [a] -> Maybe (Ring a)
+newRing [] = Nothing
+newRing xs = Just $ Ring {
   _items = xs,
   _current = 0,
   _length = length xs

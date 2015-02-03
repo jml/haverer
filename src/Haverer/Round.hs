@@ -1,6 +1,8 @@
 module Haverer.Round (newRound, thingy) where
 
+import Data.Maybe (fromJust)
 import qualified Data.Map as Map
+
 import Haverer.Action (Action(..), Play, playToAction)
 import Haverer.Deck (Card, Complete, Deck, deal, Incomplete, pop)
 import Haverer.Player (
@@ -15,7 +17,7 @@ import Haverer.Player (
   swapHands,
   toPlayers
   )
-import Haverer.Ring (Ring, advance, currentItem, newRing, nextItem, ringSize)
+import Haverer.Ring (Ring, advance, currentItem, newRing, nextItem)
 
 
 data Round = Round {
@@ -28,8 +30,6 @@ data Round = Round {
 
 data State = NotStarted | Turn Card | Over deriving Show
 
--- XXX: Enable complete pattern matching warnings
-
 -- XXX: Possibly add burn card to structure?
 
 -- XXX: Write a few invariants.
@@ -39,10 +39,11 @@ newRound deck players =
   case deal deck (length playerList) of
    (remainder, Just cards) -> nextTurn $ Round {
      _stack = fst $ pop remainder,
-     _playOrder = newRing playerList,
+     _playOrder = fromJust (newRing playerList),
      _players = Map.fromList $ zip playerList (map newPlayer cards),
      _current = NotStarted
      }
+   _ -> error ("Given a complete deck - " ++ show deck ++ "- that didn't have enough cards for players - " ++ show players)
   where playerList = toPlayers players
 
 
@@ -100,6 +101,8 @@ applyAction r (EliminateWeaker pid1 pid2) =
       LT -> adjustPlayer r pid1 eliminate
       EQ -> Right r
       GT -> adjustPlayer r pid2 eliminate
+   (Nothing, Just _) -> Left $ InactivePlayer pid1
+   (_, Nothing) -> Left $ InactivePlayer pid2
 applyAction r (EliminateOnGuess pid guess) =
   adjustPlayer r pid $ \p ->
   case getHand p of
