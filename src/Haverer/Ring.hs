@@ -61,5 +61,3 @@ nextItem :: Ring a -> a
 nextItem = currentItem . advance
 
 -- XXX: (optional) enforce non-emptyness at the type level
-
--- XXX: tests!
