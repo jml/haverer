@@ -145,11 +145,11 @@ adjustPlayer rnd pid f =
 
 replacePlayer :: Round -> PlayerId -> Player -> Round
 replacePlayer rnd pid newP =
-  let newRnd = rnd { _players = Map.insert pid newP (_players rnd) }
-  in case getHand newP of
-      Nothing -> dropPlayer pid newRnd
-      Just _ -> newRnd
+  case getHand newP of
+   Nothing -> dropPlayer pid newRnd
+   Just _ -> newRnd
   where
+    newRnd = rnd { _players = Map.insert pid newP (_players rnd) }
     dropPlayer p r =
       case dropItem (_playOrder r) p of
        Nothing -> error ("[Haverer.Round] tried to eliminate only player in round: " ++ show rnd ++ show pid ++ show newP)
