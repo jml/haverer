@@ -17,27 +17,31 @@ prompt promptStr parser = do
   return $ parser input
 
 
-repeatedlyPrompt :: Show e => String -> (String -> Either e a) -> IO a
+repeatedlyPrompt :: String -> (String -> Either String a) -> IO a
 repeatedlyPrompt promptStr parser = do
   result <- prompt promptStr parser
   case result of
    Left e -> do
-     putStrLn (show e)
+     putStrLn e
      repeatedlyPrompt promptStr parser
    Right r -> return r
 
 
-pickNumber :: String -> Either String Int
-pickNumber = readEither
+pickNumPlayers :: String -> Either String Int
+pickNumPlayers s =
+  case readMaybe s of
+   Nothing -> Left errMsg
+   Just i -> if 2 <= i && i <= 4 then Right i else Left errMsg
+  where errMsg = "Please enter a number between 2 and 4"
 
 
 
 main :: IO ()
 main = do
-  result <- repeatedlyPrompt "Pick number of players: " pickNumber
+  result <- repeatedlyPrompt "Pick number of players: " pickNumPlayers
   players <- case makePlayerSet result of
         Just set -> return set
-        Nothing -> fail "Couldn't make set for two players"
+        Nothing -> fail $ "Couldn't make set for " ++ (show result) ++ " players"
   let _:p2:[] = toPlayers players
   d <- newDeck
   let r = newRound d players
