@@ -19,7 +19,7 @@ import Haverer.Player (
   swapHands,
   toPlayers
   )
-import Haverer.Ring (Ring, advance, currentItem, dropItem, newRing, nextItem)
+import Haverer.Ring (Ring, advance, currentItem, dropItem1, newRing, nextItem)
 
 
 data Round = Round {
@@ -123,7 +123,7 @@ thingy :: Round -> Card -> Play -> Either BadAction (Round, Action)
 thingy r chosen play =
   case _current r of
    NotStarted -> thingy (nextTurn r) chosen play
-   Over -> error "Don't know how to handle game over"
+   Over -> error "XXX - Don't know how to handle game over"
    Turn _ ->  -- XXX: Need to verify that chosen card is allowed
      let playerId = currentItem (_playOrder r)
          action = playToAction playerId chosen play
@@ -146,14 +146,14 @@ adjustPlayer rnd pid f =
 replacePlayer :: Round -> PlayerId -> Player -> Round
 replacePlayer rnd pid newP =
   case getHand newP of
-   Nothing -> dropPlayer pid newRnd
+   Nothing -> dropPlayer pid
    Just _ -> newRnd
   where
     newRnd = rnd { _players = Map.insert pid newP (_players rnd) }
-    dropPlayer p r =
-      case dropItem (_playOrder r) p of
-       Nothing -> error ("[Haverer.Round] tried to eliminate only player in round: " ++ show rnd ++ show pid ++ show newP)
-       Just newOrder -> r { _playOrder = newOrder }
+    dropPlayer p =
+      case dropItem1 (_playOrder newRnd) p of
+       Left _ -> rnd { _current = Over }
+       Right newOrder -> newRnd { _playOrder = newOrder }
 
 
 getPlayer :: Round -> PlayerId -> Maybe Player

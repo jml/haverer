@@ -3,6 +3,7 @@ module Haverer.Ring (
   , newRing
   , advance
   , dropItem
+  , dropItem1
   , nextItem
   , ringSize
   , currentItem
@@ -50,6 +51,14 @@ dropItem ring item =
          then (if null xs then 0 else current - 1)
          else current
      }
+
+
+dropItem1 :: (Eq a) => Ring a -> a -> Either a (Ring a)
+dropItem1 ring item =
+  case dropItem ring item of
+   Nothing -> Left item
+   Just ring' -> Right ring'
+
 
 ringSize :: Ring a -> Int
 ringSize = _length
