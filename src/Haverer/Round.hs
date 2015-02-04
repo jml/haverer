@@ -3,7 +3,7 @@ module Haverer.Round (allCardsPresent, newRound, Round, thingy) where
 import Data.Maybe (fromJust, isJust, maybeToList)
 import qualified Data.Map as Map
 
-import Haverer.Action (Action(..), Play, playToAction)
+import Haverer.Action (Action(..), BadPlay, Play, playToAction)
 import Haverer.Deck (Card, Complete, Deck, deal, Incomplete, pop)
 import qualified Haverer.Deck as Deck
 import Haverer.Player (
@@ -68,6 +68,13 @@ nextPlayer rnd =
 
 nextTurn :: Round -> Round
 nextTurn r@(Round { _current = Over }) = r
+-- XXX: This is kind of crap. Either eliminate the duplication using some kind
+-- of composable operation, or just get rid of the NotStarted state, since we
+-- basically don't use it.
+nextTurn r@(Round { _current = NotStarted }) =
+  case drawCard r of
+   (r2, Just card) -> r2 { _current = Turn card }
+   _ -> error $ "Cannot draw a card in just started round: " ++ show r
 nextTurn r =
   case (drawCard r, nextPlayer r) of
    ((r2, Just card), Just _) -> r2 {
@@ -78,7 +85,7 @@ nextTurn r =
 
 
 
-data BadAction = NoSuchPlayer PlayerId | InactivePlayer PlayerId deriving Show
+data BadAction = NoSuchPlayer PlayerId | InactivePlayer PlayerId | InvalidPlay BadPlay deriving Show
 
 applyAction :: Round -> Action -> Either BadAction Round
 applyAction r NoChange = Right r
@@ -94,6 +101,7 @@ applyAction r (SwapHands pid1 pid2) =
 applyAction r (EliminatePlayer pid) = adjustPlayer r pid eliminate
 applyAction r (ForceDiscard pid) =
   let (r2, card) = drawCard r in
+  -- XXX: Does being forced to discard the princess end the round?
   adjustPlayer r2 pid (flip discardAndDraw card)
 applyAction r (ForceReveal _ _) = Right r
 applyAction r (EliminateWeaker pid1 pid2) =
@@ -119,9 +127,13 @@ applyAction r (EliminateOnGuess pid guess) =
 -- XXX: 'thingy' is a terrible name
 
 
+-- XXX: Function to return current players cards.
+
 thingy :: Round -> Card -> Play -> Either BadAction (Round, Action)
 thingy r chosen play =
   case _current r of
+   -- XXX: This is wrong, since the current player literally doesn't know what
+   -- they can play, since they don't know the draw.
    NotStarted -> thingy (nextTurn r) chosen play
    Over -> error "XXX - Don't know how to handle game over"
    Turn _ ->  -- XXX: Need to verify that chosen card is allowed
@@ -129,7 +141,7 @@ thingy r chosen play =
          action = playToAction playerId chosen play
      in
       case action of
-       Left _ -> error "Bad play"  -- XXX: Bad play. Translate to error type.
+       Left e -> Left $ InvalidPlay e  -- XXX: Bad play. Translate to error type.
        Right a -> fmap (\r2 -> (nextTurn r2, a)) (applyAction r a)
 
 

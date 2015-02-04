@@ -1,5 +1,6 @@
 module Haverer.Action (
   Action(..),
+  BadPlay,
   Play(..),
   playToAction,
   ) where
