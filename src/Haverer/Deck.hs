@@ -1,4 +1,5 @@
 module Haverer.Deck (
+  allCards,
   baseCards,
   Card(..),
   Complete,
@@ -19,7 +20,11 @@ import Data.List (sort, (\\))
 import System.Random.Shuffle (shuffleM)
 
 data Card = Soldier | Clown | Knight | Priestess | Wizard | General | Minister | Prince
-          deriving (Eq, Show, Ord)
+          deriving (Eq, Show, Ord, Enum)
+
+
+allCards :: [Card]
+allCards = [Soldier ..]
 
 
 data Complete
