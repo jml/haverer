@@ -19,7 +19,7 @@ import Haverer.Player (
   swapHands,
   toPlayers
   )
-import Haverer.Ring (Ring, advance, currentItem, newRing, nextItem)
+import Haverer.Ring (Ring, advance, currentItem, dropItem, newRing, nextItem)
 
 
 data Round = Round {
@@ -57,13 +57,11 @@ drawCard r =
   (r { _stack = stack }, card)
 
 
--- XXX: Use Ring here and make sure we delete players from it when eliminate
 nextPlayer :: Round -> Maybe PlayerId
 nextPlayer rnd =
   case _current rnd of
    Over -> Nothing
    NotStarted -> Just $ (currentItem playOrder)
-   -- XXX: We want next *active* player
    Turn _ -> Just $ nextItem playOrder
   where playOrder = _playOrder rnd
 
@@ -92,7 +90,7 @@ applyAction r (SwapHands pid1 pid2) =
       Nothing -> Left $ InactivePlayer pid1  -- XXX: Not necessarily pid1
       Just (newP1, newP2) -> Right $ (replace pid2 newP2 . replace pid1 newP1) r
    _ -> Left $ NoSuchPlayer pid1  -- XXX: Not necessarily pid1
-  where replace pid p rnd = rnd { _players = Map.insert pid p (_players rnd) }
+  where replace pid p rnd = replacePlayer rnd pid p
 applyAction r (EliminatePlayer pid) = adjustPlayer r pid eliminate
 applyAction r (ForceDiscard pid) =
   let (r2, card) = drawCard r in
@@ -139,9 +137,23 @@ adjustPlayer :: Round -> PlayerId -> (Player -> Maybe Player) -> Either BadActio
 adjustPlayer rnd pid f =
   case getPlayer rnd pid of
    Nothing -> Left $ NoSuchPlayer pid
-   Just player -> case f player of
-     Nothing -> Left $ InactivePlayer pid
-     Just newP -> Right $ rnd { _players = Map.insert pid newP (_players rnd) }
+   Just player ->
+     case f player of
+      Nothing -> Left $ InactivePlayer pid
+      Just newP -> Right $ replacePlayer rnd pid newP
+
+
+replacePlayer :: Round -> PlayerId -> Player -> Round
+replacePlayer rnd pid newP =
+  let newRnd = rnd { _players = Map.insert pid newP (_players rnd) }
+  in case getHand newP of
+      Nothing -> dropPlayer pid newRnd
+      Just _ -> newRnd
+  where
+    dropPlayer p r =
+      case dropItem (_playOrder r) p of
+       Nothing -> error ("[Haverer.Round] tried to eliminate only player in round: " ++ show rnd ++ show pid ++ show newP)
+       Just newOrder -> r { _playOrder = newOrder }
 
 
 getPlayer :: Round -> PlayerId -> Maybe Player
@@ -153,7 +165,6 @@ getPlayerHand r pid = getHand =<< getPlayer r pid
 
 
 -- Return all the cards in the round. Intended for testing.
-
 allCardsPresent :: Round -> Bool
 allCardsPresent =
   isJust . Deck.makeDeck . allCards
