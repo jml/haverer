@@ -9,15 +9,21 @@ import Haverer.Player
 import Haverer.Round
 
 
-repeatedlyPrompt :: Show e => String -> (String -> Either e a) -> IO a
-repeatedlyPrompt prompt parser = do
-  putStr prompt
+prompt :: Show e => String -> (String -> Either e a) -> IO (Either e a)
+prompt promptStr parser = do
+  putStr promptStr
   hFlush stdout
   input <- getLine
-  case parser input of
+  return $ parser input
+
+
+repeatedlyPrompt :: Show e => String -> (String -> Either e a) -> IO a
+repeatedlyPrompt promptStr parser = do
+  result <- prompt promptStr parser
+  case result of
    Left e -> do
      putStrLn (show e)
-     repeatedlyPrompt prompt parser
+     repeatedlyPrompt promptStr parser
    Right r -> return r
 
 
