@@ -1,4 +1,5 @@
 module Haverer.Deck (
+  baseCards,
   Card(..),
   Complete,
   deal,
@@ -8,6 +9,7 @@ module Haverer.Deck (
   newDeck,
   pop,
   shuffleDeck,
+  toList
   ) where
 
 
@@ -71,3 +73,6 @@ deal (Deck cards) n =
 
 validateSubDeck :: [Card] -> Maybe (Deck Incomplete)
 validateSubDeck cards = if null $ cards \\ baseCards then Just (Deck cards) else Nothing
+
+toList :: Deck a -> [Card]
+toList (Deck xs) = xs

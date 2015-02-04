@@ -1,13 +1,15 @@
-module Haverer.Round (newRound, thingy) where
+module Haverer.Round (allCardsPresent, newRound, Round, thingy) where
 
-import Data.Maybe (fromJust)
+import Data.Maybe (fromJust, isJust, maybeToList)
 import qualified Data.Map as Map
 
 import Haverer.Action (Action(..), Play, playToAction)
 import Haverer.Deck (Card, Complete, Deck, deal, Incomplete, pop)
+import qualified Haverer.Deck as Deck
 import Haverer.Player (
   discardAndDraw,
   eliminate,
+  getDiscards,
   getHand,
   newPlayer,
   PlayerId,
@@ -24,25 +26,27 @@ data Round = Round {
   _stack :: Deck Incomplete,
   _playOrder :: Ring PlayerId,
   _players :: Map.Map PlayerId Player,
-  _current :: State
+  _current :: State,
+  _burn :: Card
 } deriving Show
 
 
 data State = NotStarted | Turn Card | Over deriving Show
 
--- XXX: Possibly add burn card to structure?
-
--- XXX: Write a few invariants.
 
 newRound :: Deck Complete -> PlayerSet -> Round
 newRound deck players =
-  case deal deck (length playerList) of
-   (remainder, Just cards) -> nextTurn $ Round {
-     _stack = fst $ pop remainder,
-     _playOrder = fromJust (newRing playerList),
-     _players = Map.fromList $ zip playerList (map newPlayer cards),
-     _current = NotStarted
-     }
+  nextTurn $ case deal deck (length playerList) of
+   (remainder, Just cards) ->
+     case pop remainder of
+      (_, Nothing) -> error ("Not enough cards for burn: " ++ show deck)
+      (stack, Just burn) -> Round {
+        _stack = stack,
+        _playOrder = fromJust (newRing playerList),
+        _players = Map.fromList $ zip playerList (map newPlayer cards),
+        _current = NotStarted,
+        _burn = burn
+        }
    _ -> error ("Given a complete deck - " ++ show deck ++ "- that didn't have enough cards for players - " ++ show players)
   where playerList = toPlayers players
 
@@ -147,3 +151,18 @@ getPlayer Round { _players = players } pid = Map.lookup pid players
 getPlayerHand :: Round -> PlayerId -> Maybe Card
 getPlayerHand r pid = getHand =<< getPlayer r pid
 
+
+-- Return all the cards in the round. Intended for testing.
+
+allCardsPresent :: Round -> Bool
+allCardsPresent =
+  isJust . Deck.makeDeck . allCards
+  where allCards rnd =
+          _burn rnd : (
+            (Deck.toList . _stack) rnd
+            ++ (concatMap getDiscards . Map.elems . _players) rnd
+            ++ (concatMap (maybeToList . getHand) . Map.elems . _players) rnd)
+            ++ (
+            case _current rnd of
+              Turn x -> [x]
+              _ -> [])
