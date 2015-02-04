@@ -4,9 +4,9 @@
 module Round where
 
 import Control.Applicative ((<*>), (<$>))
-import Data.List (delete)
 import Data.Maybe (fromJust)
 
+import System.Random.Shuffle (shuffle)
 import Test.Tasty
 import Test.Tasty.QuickCheck
 
@@ -14,19 +14,25 @@ import Haverer.Deck (baseCards, Complete, Deck, makeDeck)
 import Haverer.Player (makePlayerSet, PlayerSet)
 import Haverer.Round
 
--- XXX: Move ring tests to separate module
+
 
 instance Arbitrary (Deck Complete) where
   arbitrary = fmap (fromJust . makeDeck) (shuffled baseCards)
 
 
--- XXX: Can probably do better than this by generating a shuffled list of
--- integers and then using System.Random.Shuffle.shuffle.
-shuffled :: Eq a => [a] -> Gen [a]
-shuffled [] = return []
-shuffled xs = do x <- oneof $ map return xs
-                 ys <- shuffled $ delete x xs
-                 return (x:ys)
+shuffled ::[a] -> Gen [a]
+shuffled xs = do
+  rs <- randomOrdering (length xs - 1)
+  return $ shuffle xs rs
+  where
+    -- a sequence (r1,...r[n-1]) of numbers such that r[i] is an independent
+    -- sample from a uniform random distribution [0..n-i]
+    randomOrdering 0 = return []
+    randomOrdering n =
+      do y <- choose (0, n)
+         ys <- randomOrdering (n - 1)
+         return (y:ys)
+
 
 
 instance Arbitrary PlayerSet where

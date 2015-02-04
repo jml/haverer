@@ -42,3 +42,4 @@ test-suite test
               , tasty-hunit
               , tasty-quickcheck
               , haverer
+              , random-shuffle
