@@ -63,9 +63,10 @@ validateAction :: PlayerId -> Action -> Either BadPlay Action
 validateAction player action =
   case getTarget action of
    Nothing -> Right action
-   Just target ->
-     if player == target then
-       case action of
-        (ForceDiscard _) -> Right action
-        _ -> Left SelfTarget
-     else Right action
+   Just target
+     | player == target ->
+         case action of
+          (ForceDiscard _) -> Right action
+          (EliminatePlayer _) -> Right action
+          _ -> Left SelfTarget
+     | otherwise -> Right action
