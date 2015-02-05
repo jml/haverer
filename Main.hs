@@ -54,8 +54,6 @@ pickGuess players = do
 
 -- XXX: Exclude self-targeting when it's not legal
 
--- XXX: Say whose turn it is
-
 -- XXX: Better rendering for player ids
 
 
@@ -89,9 +87,10 @@ roundOver r = do
 
 playHand :: PlayerSet -> Round -> IO (Maybe Round)
 playHand players r =
-  case currentHand r of
+  case currentTurn r of
    Nothing -> return Nothing
-   Just hand -> do
+   Just (player, hand) -> do
+     putStrLn $ show player
      card <- pickCardToPlay hand
      putStrLn $ "You chose: " ++ show card
 

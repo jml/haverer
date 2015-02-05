@@ -1,5 +1,6 @@
 module Haverer.Round (allCardsPresent
                      , currentHand
+                     , currentTurn
                      , newRound
                      , Round
                      , thingy) where
