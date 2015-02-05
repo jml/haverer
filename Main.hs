@@ -19,11 +19,11 @@ pickNumPlayers =
 
 
 pickCard :: IO Card
-pickCard = chooseItem "Please choose a card: " allCards
+pickCard = chooseItem "\nPlease choose a card: " allCards
 
 pickCardToPlay :: (Card, Card) -> IO Card
 pickCardToPlay (dealt, hand) =
-  chooseItem "Please choose a card: " [dealt, hand]
+  chooseItem "\nPlease choose a card: " [dealt, hand]
 
 
 pickPlay :: Card -> PlayerSet -> IO Play
@@ -39,7 +39,7 @@ pickPlay card players =
    Prince -> return NoEffect
 
 pickTarget :: PlayerSet -> IO PlayerId
-pickTarget ps = chooseItem "Please choose a target: " (toPlayers ps)
+pickTarget ps = chooseItem "\nPlease choose a target: " (toPlayers ps)
 
 pickAttack :: PlayerSet -> IO Play
 pickAttack players = fmap Attack (pickTarget players)
