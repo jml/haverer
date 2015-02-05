@@ -27,22 +27,23 @@ at :: [a] -> Int -> Maybe a
 at xs i = if 0 <= i && i < length xs then Just (xs !! i) else Nothing
 
 
--- XXX: Allow specifying base index
+chooseItem :: Show a => String -> [a] -> IO a
+chooseItem promptStr items = chooseItem' promptStr 1 items
 
 -- XXX: Crazier: Allow specifying generic Idx
-chooseItem :: Show a => String -> [a] -> IO a
-chooseItem promptStr items =
+chooseItem' :: Show a => String -> Int -> [a] -> IO a
+chooseItem' promptStr startIndex items =
   repeatedlyPrompt fullPrompt (pickItem items)
   where
     fullPrompt =
       promptStr ++ "\n" ++
-      intercalate "\n" [show (i :: Int) ++ ". " ++ show x | (i, x) <- zip [1..] items]
+      intercalate "\n" [show (i :: Int) ++ ". " ++ show x | (i, x) <- zip [startIndex ..] items]
       ++ "\n>>> "
     pickItem xs chosen =
       case readMaybe chosen of
        Nothing -> Left errMsg
        Just i ->
-         case xs `at` (i - 1) of
+         case xs `at` (i - startIndex) of
           Nothing -> Left errMsg
           Just x -> return x
     errMsg = "Please select an item from the list"

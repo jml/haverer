@@ -18,9 +18,6 @@ pickNumPlayers =
     errMsg = "Please enter a number between 2 and 4"
 
 
-pickCard :: IO Card
-pickCard = chooseItem "\nPlease choose a card: " allCards
-
 pickCardToPlay :: (Card, Card) -> IO Card
 pickCardToPlay (dealt, hand) =
   chooseItem "\nPlease choose a card: " [dealt, hand]
@@ -47,10 +44,9 @@ pickAttack players = fmap Attack (pickTarget players)
 pickGuess :: PlayerSet -> IO Play
 pickGuess players = do
   target <- pickTarget players
-  -- XXX: Exclude Soldier from guess
   guess <- pickGuessCard
   return $ Guess target guess
-  where pickGuessCard = pickCard
+  where pickGuessCard = chooseItem' "\nWhat card do they have?" 2 [Clown ..]
 
 -- XXX: Exclude self-targeting when it's not legal
 
