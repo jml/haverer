@@ -74,6 +74,13 @@ currentHand rnd = do
    _ -> Nothing
 
 
+currentTurn :: Round -> Maybe (PlayerId, (Card, Card))
+currentTurn rnd = do
+  pid <- currentPlayer rnd
+  cards <- currentHand rnd
+  return (pid, cards)
+
+
 nextPlayer :: Round -> Maybe PlayerId
 nextPlayer rnd =
   case _current rnd of
@@ -102,11 +109,18 @@ nextTurn r =
 
 
 
-data BadAction = NoSuchPlayer PlayerId | InactivePlayer PlayerId | InvalidPlay BadPlay deriving Show
+data BadAction = NoSuchPlayer PlayerId
+               | InactivePlayer PlayerId
+               | InvalidPlay BadPlay
+               | WrongCard Card (Card, Card)
+               deriving Show
 
 applyAction :: Round -> Action -> Either BadAction Round
 applyAction r NoChange = Right r
 applyAction r (Protect pid) = adjustPlayer r pid protect
+-- XXX: This is buggy. When swapping hands and the General happens to be 'in
+-- the hand', then the target player gets the general. Instead, they should
+-- get the dealt card.
 applyAction r (SwapHands pid1 pid2) =
   case (getPlayer r pid1, getPlayer r pid2) of
    (Just p1, Just p2) ->
@@ -144,22 +158,16 @@ applyAction r (EliminateOnGuess pid guess) =
 -- XXX: 'thingy' is a terrible name
 
 
--- XXX: Function to return current players cards.
-
 thingy :: Round -> Card -> Play -> Either BadAction (Round, Action)
 thingy r chosen play =
-  case _current r of
-   -- XXX: This is wrong, since the current player literally doesn't know what
-   -- they can play, since they don't know the draw.
-   NotStarted -> thingy (nextTurn r) chosen play
-   Over -> error "XXX - Don't know how to handle game over"
-   Turn _ ->  -- XXX: Need to verify that chosen card is allowed
-     let playerId = currentItem (_playOrder r)
-         action = playToAction playerId chosen play
-     in
-      case action of
-       Left e -> Left $ InvalidPlay e  -- XXX: Bad play. Translate to error type.
-       Right a -> fmap (\r2 -> (nextTurn r2, a)) (applyAction r a)
+  case currentTurn r of
+   Nothing -> error $ "Trying to play turn in game that's over or hasn't started: " ++ show r
+   Just (playerId, (dealt, hand))
+     | chosen == dealt || chosen == hand ->
+         case playToAction playerId chosen play of
+          Left e -> Left $ InvalidPlay e  -- XXX: Bad play. Translate to error type.
+          Right a -> fmap (\r2 -> (nextTurn r2, a)) (applyAction r a)
+     | otherwise -> Left $ WrongCard chosen (dealt, hand)
 
 
 adjustPlayer :: Round -> PlayerId -> (Player -> Maybe Player) -> Either BadAction Round
