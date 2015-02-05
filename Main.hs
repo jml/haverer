@@ -58,8 +58,6 @@ pickGuess players = do
 
 -- XXX: Better rendering for player ids
 
--- XXX: Loop until game done
-
 
 main :: IO ()
 main = do
@@ -76,15 +74,32 @@ main = do
 
 playRound :: PlayerSet -> Round -> IO ()
 playRound players r = do
-  card <- case currentHand r of
-   Just hand -> pickCardToPlay hand
-   Nothing -> fail $ "Picking card for inactive player: " ++ show r
-  putStrLn $ "You chose: " ++ show card
+  result <- playHand players r
+  case result of
+   Just r' -> do
+     putStrLn $ ppShow r'
+     playRound players r'
+   Nothing -> roundOver r
 
-  play <- pickPlay card players
-  putStrLn $ "You chose: " ++ show play
 
-  (r2, a) <- case thingy r card play of
-    Left e -> fail (show e)
-    Right a -> return a
-  putStrLn $ ppShow (r2, a)
+roundOver :: Round -> IO ()
+roundOver r = do
+  putStrLn $ "IT IS FINISHED: " ++ show r
+
+
+playHand :: PlayerSet -> Round -> IO (Maybe Round)
+playHand players r =
+  case currentHand r of
+   Nothing -> return Nothing
+   Just hand -> do
+     card <- pickCardToPlay hand
+     putStrLn $ "You chose: " ++ show card
+
+     play <- pickPlay card players
+
+     (r2, a) <- case thingy r card play of
+                 Left e -> fail (show e)
+                 Right a -> return a
+
+     putStrLn $ "\nThis amazing thing happened: " ++ show a
+     return $ Just r2

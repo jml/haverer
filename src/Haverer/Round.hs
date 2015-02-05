@@ -107,6 +107,8 @@ nextTurn r =
   case (drawCard r, nextPlayer r) of
    ((r2, Just card), Just _) -> r2 {
      _current = Turn card,
+     -- XXX: Should be advance1
+     -- XXX: Types should have prevented me from doing this
      _playOrder = advance (_playOrder r)
      }
    _ -> r { _current = Over }
@@ -162,6 +164,8 @@ applyAction r (EliminateOnGuess pid guess) =
 -- XXX: 'thingy' is a terrible name
 
 
+-- XXX: If player plays Priestess, is protected forever
+
 thingy :: Round -> Card -> Play -> Either BadAction (Round, Action)
 thingy r chosen play =
   case currentTurn r of
@@ -170,6 +174,7 @@ thingy r chosen play =
      | chosen == dealt || chosen == hand ->
          case playToAction playerId chosen play of
           Left e -> Left $ InvalidPlay e  -- XXX: Bad play. Translate to error type.
+          -- XXX: Discard the card that was actually played
           Right a -> fmap (\r2 -> (nextTurn r2, a)) (applyAction r a)
      | otherwise -> Left $ WrongCard chosen (dealt, hand)
 
