@@ -18,10 +18,12 @@ pickNumPlayers =
     errMsg = "Please enter a number between 2 and 4"
 
 
--- XXX: Actually don't want to allow choosing _any_ card. Want to restrict to
--- cards in hand.
 pickCard :: IO Card
 pickCard = chooseItem "Please choose a card: " allCards
+
+pickCardToPlay :: (Card, Card) -> IO Card
+pickCardToPlay (dealt, hand) =
+  chooseItem "Please choose a card: " [dealt, hand]
 
 
 pickPlay :: Card -> PlayerSet -> IO Play
@@ -68,7 +70,9 @@ main = do
   d <- newDeck
   let r = newRound d players
   putStrLn $ ppShow r
-  card <- pickCard
+  card <- case currentHand r of
+   Just hand -> pickCardToPlay hand
+   Nothing -> fail $ "Picking card for inactive player: " ++ show r
   putStrLn $ "You chose: " ++ show card
   play <- pickPlay card players
   putStrLn $ "You chose: " ++ show play

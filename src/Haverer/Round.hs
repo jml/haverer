@@ -1,4 +1,4 @@
-module Haverer.Round (allCardsPresent, newRound, Round, thingy) where
+module Haverer.Round (allCardsPresent, currentHand, newRound, Round, thingy) where
 
 import Data.Maybe (fromJust, isJust, maybeToList)
 import qualified Data.Map as Map
@@ -55,6 +55,23 @@ drawCard :: Round -> (Round, Maybe Card)
 drawCard r =
   let (stack, card) = pop (_stack r) in
   (r { _stack = stack }, card)
+
+
+currentPlayer :: Round -> Maybe PlayerId
+currentPlayer rnd =
+  case _current rnd of
+   Over -> Nothing
+   NotStarted -> Nothing
+   Turn _ -> Just $ (currentItem . _playOrder) rnd
+
+
+currentHand :: Round -> Maybe (Card, Card)
+currentHand rnd = do
+  pid <- currentPlayer rnd
+  hand <- getPlayerHand rnd pid
+  case _current rnd of
+   Turn dealt -> return (dealt, hand)
+   _ -> Nothing
 
 
 nextPlayer :: Round -> Maybe PlayerId
