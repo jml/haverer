@@ -67,15 +67,23 @@ main = do
   players <- case makePlayerSet result of
         Just set -> return set
         Nothing -> fail $ "Couldn't make set for " ++ (show result) ++ " players"
+
   d <- newDeck
   let r = newRound d players
-  putStrLn $ ppShow r
+
+  playRound players r
+
+
+playRound :: PlayerSet -> Round -> IO ()
+playRound players r = do
   card <- case currentHand r of
    Just hand -> pickCardToPlay hand
    Nothing -> fail $ "Picking card for inactive player: " ++ show r
   putStrLn $ "You chose: " ++ show card
+
   play <- pickPlay card players
   putStrLn $ "You chose: " ++ show play
+
   (r2, a) <- case thingy r card play of
     Left e -> fail (show e)
     Right a -> return a

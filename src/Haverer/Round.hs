@@ -1,4 +1,8 @@
-module Haverer.Round (allCardsPresent, currentHand, newRound, Round, thingy) where
+module Haverer.Round (allCardsPresent
+                     , currentHand
+                     , newRound
+                     , Round
+                     , thingy) where
 
 import Data.Maybe (fromJust, isJust, maybeToList)
 import qualified Data.Map as Map
