@@ -1,7 +1,10 @@
 module Haverer.Round (allCardsPresent
                      , currentHand
+                     , currentPlayer
                      , currentTurn
+                     , getPlayers
                      , newRound
+                     , nextPlayer
                      , Round
                      , thingy) where
 
@@ -54,6 +57,10 @@ newRound deck players =
         }
    _ -> error ("Given a complete deck - " ++ show deck ++ "- that didn't have enough cards for players - " ++ show players)
   where playerList = toPlayers players
+
+
+getPlayers :: Round -> [PlayerId]
+getPlayers = Map.keys . _players
 
 
 drawCard :: Round -> (Round, Maybe Card)
@@ -224,3 +231,11 @@ allCardsPresent =
             case _current rnd of
               Turn x -> [x]
               _ -> [])
+
+-- XXX: Property that burn card is the same
+
+-- XXX: Property that active players == ring
+
+-- XXX: Property that !Over ==> more than one active player
+
+-- XXX: Property that later deck is smaller than earlier deck
