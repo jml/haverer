@@ -88,17 +88,34 @@ randomCardPlay round = do
      return $ Just $ (card, play)
 
 
+applyPlay :: Round -> Maybe (Card, Play) -> Either BadAction Round
+applyPlay r Nothing = return r
+applyPlay r (Just (card, play)) = fmap fst (thingy r card play)
+
+fromRight :: Show a => Either a b -> b
+fromRight (Right b) = b
+fromRight (Left a) = error $ "unexpected Left " ++ show a
+
+
+randomNextMove :: Round -> Gen Round
+randomNextMove r = fmap (fromRight . applyPlay r) (randomCardPlay r)
+
+
 nextPlayerNeverCurrentPlayer :: Round -> Bool
 nextPlayerNeverCurrentPlayer round =
   currentPlayer round /= nextPlayer round || currentPlayer round == Nothing
 
 
-
-
 suite :: TestTree
 suite = testGroup "Haverer.Round" [
   testGroup "QuickCheck tests"
-    [ testProperty "allCardsPresent" allCardsPresent
-    , testProperty "next player is not current player" nextPlayerNeverCurrentPlayer
-    ]
+  [ testProperty "allCardsPresent" allCardsPresent
+    -- XXX: Also fails! A card disappears. Genuine bug found through
+    -- property-based testing
+  , testProperty "allCardsPresent after nextTurn" (allCardsPresent . nextTurn)
+  , testProperty "next player is not current player" nextPlayerNeverCurrentPlayer
+    -- XXX: Fails, and I think it's a genuine bug
+    --    , testProperty "next player is not current player after turn"
+    --      $ forAll (arbitrary >>= randomNextMove) nextPlayerNeverCurrentPlayer
   ]
+ ]

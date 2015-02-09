@@ -1,10 +1,12 @@
 module Haverer.Round (allCardsPresent
+                     , BadAction
                      , currentHand
                      , currentPlayer
                      , currentTurn
                      , getPlayers
                      , newRound
                      , nextPlayer
+                     , nextTurn -- XXX: exported only for tests
                      , Round
                      , thingy) where
 
@@ -20,6 +22,7 @@ import Haverer.Player (
   getDiscards,
   getHand,
   newPlayer,
+  playCard,
   PlayerId,
   Player,
   PlayerSet,
@@ -40,7 +43,6 @@ data Round = Round {
 
 
 data State = NotStarted | Turn Card | Over deriving Show
-
 
 newRound :: Deck Complete -> PlayerSet -> Round
 newRound deck players =
@@ -100,6 +102,9 @@ nextPlayer rnd =
    NotStarted -> Just $ (currentItem playOrder)
    Turn _ -> Just $ nextItem playOrder
   where playOrder = _playOrder rnd
+
+
+-- XXX: Would using a State monad make any of this code better?
 
 
 nextTurn :: Round -> Round
@@ -178,13 +183,37 @@ thingy :: Round -> Card -> Play -> Either BadAction (Round, Action)
 thingy r chosen play =
   case currentTurn r of
    Nothing -> error $ "Trying to play turn in game that's over or hasn't started: " ++ show r
-   Just (playerId, (dealt, hand))
-     | chosen == dealt || chosen == hand ->
+   Just (playerId, (dealt, hand)) ->
+     case other chosen (dealt, hand) of
+      Nothing -> Left $ WrongCard chosen (dealt, hand)
+      Just _ ->
          case playToAction playerId chosen play of
           Left e -> Left $ InvalidPlay e  -- XXX: Bad play. Translate to error type.
           -- XXX: Discard the card that was actually played
-          Right a -> fmap (\r2 -> (nextTurn r2, a)) (applyAction r a)
-     | otherwise -> Left $ WrongCard chosen (dealt, hand)
+          Right a -> do
+            -- XXX: Now we're here, we know the player can play the card.
+            --
+            -- We need to
+            --   a) make sure the players hand is whatever of (dealt, hand)
+            --      they didn't play
+            --   b) add whatever they did play to ther discards
+            --   c) hope that having a card duplicated in Turn & their hand
+            --      isn't such a bad thing
+            --   d) perform the action
+            --   e) advance the play order to the next player
+            --   f) draw a card from the top of the stack
+            --
+            -- nextTurn is definitely losing a card somewhere. 
+            r2 <- adjustPlayer r playerId (\p -> playCard p dealt chosen)
+            r3 <- applyAction r2 a
+            return (nextTurn r3, a)
+
+
+other :: Eq a => a -> (a, a) -> Maybe a
+other x (y, z)
+  | x == z = Just y
+  | x == y = Just z
+  | otherwise = Nothing
 
 
 adjustPlayer :: Round -> PlayerId -> (Player -> Maybe Player) -> Either BadAction Round
