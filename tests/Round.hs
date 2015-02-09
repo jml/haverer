@@ -18,6 +18,7 @@ import Haverer.Player (makePlayerSet, PlayerId, PlayerSet)
 import Haverer.Round
 
 
+-- Gah
 
 instance Arbitrary (Deck Complete) where
   arbitrary = fmap (fromJust . makeDeck) (shuffled baseCards)
