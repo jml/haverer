@@ -18,8 +18,6 @@ import Haverer.Player (makePlayerSet, PlayerId, PlayerSet)
 import Haverer.Round
 
 
--- Gah
-
 instance Arbitrary (Deck Complete) where
   arbitrary = fmap (fromJust . makeDeck) (shuffled baseCards)
 
@@ -111,9 +109,8 @@ suite :: TestTree
 suite = testGroup "Haverer.Round" [
   testGroup "QuickCheck tests"
   [ testProperty "allCardsPresent" allCardsPresent
-    -- XXX: Also fails! A card disappears. Genuine bug found through
-    -- property-based testing
-  , testProperty "allCardsPresent after nextTurn" (allCardsPresent . nextTurn)
+  , testProperty "allCardsPresent after move" $
+    forAll (arbitrary >>= randomNextMove) allCardsPresent
   , testProperty "next player is not current player" nextPlayerNeverCurrentPlayer
     -- XXX: Fails, and I think it's a genuine bug
     --    , testProperty "next player is not current player after turn"

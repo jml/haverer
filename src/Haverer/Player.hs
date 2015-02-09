@@ -17,7 +17,7 @@ module Haverer.Player (
 
 import Data.List (nub, sort)
 
-import Haverer.Deck (Card(Prince))
+import Haverer.Deck (Card)
 
 newtype PlayerId = PlayerId Int deriving (Eq, Ord, Show)
 
@@ -89,22 +89,24 @@ swapHands p1 p2 =
    _ -> Nothing
 
 
+-- Will not de-activate player if they discard a Prince.
 discardAndDraw :: Player -> Maybe Card -> Maybe Player
 discardAndDraw (Inactive _) _ = Nothing
 discardAndDraw (Active card False discards) Nothing = Just $ Inactive (card:discards)
 discardAndDraw player@(Active _ True _) _ = Just player
-discardAndDraw (Active Prince _ discards) _ = Just $ Inactive (Prince:discards)
 discardAndDraw (Active card protected discards) (Just newCard) =
   Just $ Active newCard protected (card:discards)
 
 
+-- |Given a dealt and chosen card, update the hand to chosen, and chuck
+-- whatever wasn't played onto the discard pile.
 playCard :: Player -> Card -> Card -> Maybe Player
 playCard (Inactive _) _ _ = Nothing
-playCard (Active card protected discards) dealt chosen =
-  if card == chosen
-  then Just $ Active dealt protected (card:discards)
-  else if card == dealt
-       then Just $ Active card protected (dealt:discards)
+playCard (Active hand protected discards) dealt chosen =
+  if hand == chosen
+  then Just $ Active dealt protected (hand:discards)
+  else if dealt == chosen
+       then Just $ Active hand protected (dealt:discards)
        else Nothing
 
 getDiscards :: Player -> [Card]
