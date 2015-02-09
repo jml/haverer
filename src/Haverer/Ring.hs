@@ -5,6 +5,7 @@ module Haverer.Ring (
   , advance1
   , dropItem
   , dropItem1
+  , toList
   , nextItem
   , ringSize
   , currentItem
@@ -26,6 +27,9 @@ newRing xs = Just $ Ring {
   _length = length xs
   }
 
+
+toList :: Ring a -> [a]
+toList = _items
 
 advanceBy :: Int -> Ring a -> Ring a
 advanceBy n ring = ring {

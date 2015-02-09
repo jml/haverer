@@ -100,6 +100,13 @@ randomNextMove :: Round -> Gen Round
 randomNextMove r = fmap (fromRight . applyPlay r) (randomCardPlay r)
 
 
+twoConsecutiveRounds :: Gen (Round, Round)
+twoConsecutiveRounds = do
+  r1 <- arbitrary
+  r2 <- randomNextMove r1
+  return (r1, r2)
+
+
 nextPlayerNeverCurrentPlayer :: Round -> Bool
 nextPlayerNeverCurrentPlayer round =
   currentPlayer round /= nextPlayer round || currentPlayer round == Nothing
@@ -114,5 +121,12 @@ suite = testGroup "Haverer.Round" [
   , testProperty "next player is not current player" nextPlayerNeverCurrentPlayer
   , testProperty "next player is not current player after turn"
     $ forAll (arbitrary >>= randomNextMove) nextPlayerNeverCurrentPlayer
+  , testProperty "ring is active players" $ ringIsActivePlayers
+  , testProperty "ring is active players after move" $
+    forAll (arbitrary >>= randomNextMove) ringIsActivePlayers
+  , testProperty "burn card same after move" $
+    forAll twoConsecutiveRounds $ \(x, y) -> burnCardsSame x y
+  , testProperty "multiple active players or over" $
+    forAll (arbitrary >>= randomNextMove) multipleActivePlayers
   ]
  ]

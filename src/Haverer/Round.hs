@@ -1,11 +1,14 @@
 module Haverer.Round (allCardsPresent
                      , BadAction
+                     , burnCardsSame
                      , currentHand
                      , currentPlayer
                      , currentTurn
                      , getPlayers
+                     , multipleActivePlayers
                      , newRound
                      , nextPlayer
+                     , ringIsActivePlayers
                      , Round
                      , thingy) where
 
@@ -30,6 +33,7 @@ import Haverer.Player (
   toPlayers
   )
 import Haverer.Ring (Ring, advance1, currentItem, dropItem1, newRing, nextItem)
+import qualified Haverer.Ring as Ring
 
 
 data Round = Round {
@@ -249,10 +253,19 @@ allCardsPresent =
               Turn x -> [x]
               _ -> [])
 
--- XXX: Property that burn card is the same
 
--- XXX: Property that active players == ring
+burnCardsSame :: Round -> Round -> Bool
+burnCardsSame x y = _burn x == _burn y
 
--- XXX: Property that !Over ==> more than one active player
 
--- XXX: Property that later deck is smaller than earlier deck
+ringIsActivePlayers :: Round -> Bool
+ringIsActivePlayers r =
+  (Map.keys . Map.mapMaybe getHand . _players) r ==
+  (Ring.toList . _playOrder) r
+
+
+multipleActivePlayers :: Round -> Bool
+multipleActivePlayers r =
+  case _current r of
+   Over -> True
+   _ -> (Ring.ringSize . _playOrder $ r) > 1
