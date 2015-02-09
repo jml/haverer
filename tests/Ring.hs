@@ -10,7 +10,6 @@ import Data.Maybe (fromJust)
 import Data.List
 import Haverer.Ring
 
--- XXX: Move ring tests to separate module
 
 instance (Arbitrary a) => Arbitrary (Ring a) where
   arbitrary = fmap (fromJust . newRing) (listOf1 arbitrary)

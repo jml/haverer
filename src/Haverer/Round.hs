@@ -145,7 +145,7 @@ data BadAction = NoSuchPlayer PlayerId
 applyAction :: Round -> Action -> Either BadAction Round
 applyAction r NoChange = Right r
 applyAction r (Protect pid) = adjustPlayer r pid protect
--- XXX: This is buggy. When swapping hands and the General happens to be 'in
+-- FIXME: This is buggy. When swapping hands and the General happens to be 'in
 -- the hand', then the target player gets the general. Instead, they should
 -- get the dealt card.
 applyAction r (SwapHands pid1 pid2) =
@@ -179,14 +179,14 @@ applyAction r (EliminateOnGuess pid guess) =
    Just card -> if card == guess then eliminate p else Just p
 
 
--- XXX: No way to send Clown / ForceReveal results
--- XXX: No way for communicating busting out due to minister
--- XXX: End round when only one player left
--- XXX: End round when no cards left
+-- FIXME: No way to send Clown / ForceReveal results
+
+-- FIXME: No way for communicating busting out due to minister
+
 -- XXX: 'thingy' is a terrible name
 
 
--- XXX: If player plays Priestess, is protected forever
+-- FIXME: If player plays Priestess, is protected forever
 
 thingy :: Round -> Card -> Play -> Either BadAction (Round, Action)
 thingy r chosen play =
