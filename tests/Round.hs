@@ -115,18 +115,18 @@ nextPlayerNeverCurrentPlayer round =
 suite :: TestTree
 suite = testGroup "Haverer.Round" [
   testGroup "QuickCheck tests"
-  [ testProperty "allCardsPresent" allCardsPresent
+  [ testProperty "allCardsPresent" prop_allCardsPresent
   , testProperty "allCardsPresent after move" $
-    forAll (arbitrary >>= randomNextMove) allCardsPresent
+    forAll (arbitrary >>= randomNextMove) prop_allCardsPresent
   , testProperty "next player is not current player" nextPlayerNeverCurrentPlayer
   , testProperty "next player is not current player after turn"
     $ forAll (arbitrary >>= randomNextMove) nextPlayerNeverCurrentPlayer
-  , testProperty "ring is active players" $ ringIsActivePlayers
+  , testProperty "ring is active players" $ prop_ringIsActivePlayers
   , testProperty "ring is active players after move" $
-    forAll (arbitrary >>= randomNextMove) ringIsActivePlayers
+    forAll (arbitrary >>= randomNextMove) prop_ringIsActivePlayers
   , testProperty "burn card same after move" $
-    forAll twoConsecutiveRounds $ \(x, y) -> burnCardsSame x y
+    forAll twoConsecutiveRounds $ \(x, y) -> prop_burnCardsSame x y
   , testProperty "multiple active players or over" $
-    forAll (arbitrary >>= randomNextMove) multipleActivePlayers
+    forAll (arbitrary >>= randomNextMove) prop_multipleActivePlayers
   ]
  ]

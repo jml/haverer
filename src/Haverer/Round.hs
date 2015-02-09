@@ -1,14 +1,14 @@
-module Haverer.Round (allCardsPresent
-                     , BadAction
-                     , burnCardsSame
+module Haverer.Round ( BadAction
                      , currentHand
                      , currentPlayer
                      , currentTurn
                      , getPlayers
-                     , multipleActivePlayers
                      , newRound
                      , nextPlayer
-                     , ringIsActivePlayers
+                     , prop_allCardsPresent
+                     , prop_burnCardsSame
+                     , prop_multipleActivePlayers
+                     , prop_ringIsActivePlayers
                      , Round
                      , thingy) where
 
@@ -240,8 +240,8 @@ getPlayerHand r pid = getHand =<< getPlayer r pid
 
 
 -- Return all the cards in the round. Intended for testing.
-allCardsPresent :: Round -> Bool
-allCardsPresent =
+prop_allCardsPresent :: Round -> Bool
+prop_allCardsPresent =
   isJust . Deck.makeDeck . allCards
   where allCards rnd =
           _burn rnd : (
@@ -254,18 +254,18 @@ allCardsPresent =
               _ -> [])
 
 
-burnCardsSame :: Round -> Round -> Bool
-burnCardsSame x y = _burn x == _burn y
+prop_burnCardsSame :: Round -> Round -> Bool
+prop_burnCardsSame x y = _burn x == _burn y
 
 
-ringIsActivePlayers :: Round -> Bool
-ringIsActivePlayers r =
+prop_ringIsActivePlayers :: Round -> Bool
+prop_ringIsActivePlayers r =
   (Map.keys . Map.mapMaybe getHand . _players) r ==
   (Ring.toList . _playOrder) r
 
 
-multipleActivePlayers :: Round -> Bool
-multipleActivePlayers r =
+prop_multipleActivePlayers :: Round -> Bool
+prop_multipleActivePlayers r =
   case _current r of
    Over -> True
    _ -> (Ring.ringSize . _playOrder $ r) > 1
