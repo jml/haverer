@@ -2,6 +2,7 @@ module Haverer.Ring (
   Ring
   , newRing
   , advance
+  , advance1
   , dropItem
   , dropItem1
   , nextItem
@@ -33,6 +34,12 @@ advanceBy n ring = ring {
 
 advance :: Ring a -> Ring a
 advance = advanceBy 1
+
+advance1 :: Ring a -> Either a (Ring a)
+advance1 ring =
+  case _items ring of
+   x:[] -> Left x
+   _ -> Right $ advance ring
 
 dropItem :: (Eq a) => Ring a -> a -> Maybe (Ring a)
 dropItem ring item =

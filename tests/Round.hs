@@ -112,8 +112,7 @@ suite = testGroup "Haverer.Round" [
   , testProperty "allCardsPresent after move" $
     forAll (arbitrary >>= randomNextMove) allCardsPresent
   , testProperty "next player is not current player" nextPlayerNeverCurrentPlayer
-    -- XXX: Fails, and I think it's a genuine bug
-    --    , testProperty "next player is not current player after turn"
-    --      $ forAll (arbitrary >>= randomNextMove) nextPlayerNeverCurrentPlayer
+  , testProperty "next player is not current player after turn"
+    $ forAll (arbitrary >>= randomNextMove) nextPlayerNeverCurrentPlayer
   ]
  ]

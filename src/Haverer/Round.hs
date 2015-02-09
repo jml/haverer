@@ -29,7 +29,7 @@ import Haverer.Player (
   swapHands,
   toPlayers
   )
-import Haverer.Ring (Ring, advance, currentItem, dropItem1, newRing, nextItem)
+import Haverer.Ring (Ring, advance1, currentItem, dropItem1, newRing, nextItem)
 
 
 data Round = Round {
@@ -121,11 +121,12 @@ nextTurn (Round { _current = Turn _ } ) =
   error "Cannot advance to next turn while waiting for play."
 nextTurn r =
   case (drawCard r, nextPlayer r) of
-   ((r2, Just card), Just _) -> r2 {
-     _current = Turn card,
-     -- XXX: Should be advance1
-     -- XXX: Types should have prevented me from doing this
-     _playOrder = advance (_playOrder r)
+   ((r2, Just card), Just _) ->
+     case advance1 (_playOrder r) of
+      Left _ -> r { _current = Over }
+      Right newPlayOrder -> r2 {
+        _current = Turn card,
+        _playOrder = newPlayOrder
      }
    _ -> r { _current = Over }
 
