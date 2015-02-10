@@ -40,7 +40,7 @@ data Round = Round {
   _stack :: Deck Incomplete,
   _playOrder :: Ring PlayerId,
   _players :: Map.Map PlayerId Player,
-  _current :: State,
+  _state :: State,
   _burn :: Card
 } deriving Show
 
@@ -57,7 +57,7 @@ newRound deck players =
         _stack = stack,
         _playOrder = fromJust (newRing playerList),
         _players = Map.fromList $ zip playerList (map newPlayer cards),
-        _current = NotStarted,
+        _state = NotStarted,
         _burn = burn
         }
    _ -> error ("Given a complete deck - " ++ show deck ++ "- that didn't have enough cards for players - " ++ show players)
@@ -76,7 +76,7 @@ drawCard r =
 
 currentPlayer :: Round -> Maybe PlayerId
 currentPlayer rnd =
-  case _current rnd of
+  case _state rnd of
    Over -> Nothing
    NotStarted -> Nothing
    Turn _ -> Just $ (currentItem . _playOrder) rnd
@@ -87,7 +87,7 @@ currentHand :: Round -> Maybe (Card, Card)
 currentHand rnd = do
   pid <- currentPlayer rnd
   hand <- getPlayerHand rnd pid
-  case _current rnd of
+  case _state rnd of
    Turn dealt -> return (dealt, hand)
    _ -> Nothing
 
@@ -101,7 +101,7 @@ currentTurn rnd = do
 
 nextPlayer :: Round -> Maybe PlayerId
 nextPlayer rnd =
-  case _current rnd of
+  case _state rnd of
    Over -> Nothing
    NotStarted -> Just $ (currentItem playOrder)
    Turn _ -> Just $ nextItem playOrder
@@ -113,26 +113,26 @@ nextPlayer rnd =
 
 
 nextTurn :: Round -> Round
-nextTurn r@(Round { _current = Over }) = r
+nextTurn r@(Round { _state = Over }) = r
 -- XXX: This is kind of crap. Either eliminate the duplication using some kind
 -- of composable operation, or just get rid of the NotStarted state, since we
 -- basically don't use it.
-nextTurn r@(Round { _current = NotStarted }) =
+nextTurn r@(Round { _state = NotStarted }) =
   case drawCard r of
-   (r2, Just card) -> r2 { _current = Turn card }
+   (r2, Just card) -> r2 { _state = Turn card }
    _ -> error $ "Cannot draw a card in just started round: " ++ show r
-nextTurn (Round { _current = Turn _ } ) =
+nextTurn (Round { _state = Turn _ } ) =
   error "Cannot advance to next turn while waiting for play."
 nextTurn r =
   case (drawCard r, nextPlayer r) of
    ((r2, Just card), Just _) ->
      case advance1 (_playOrder r) of
-      Left _ -> r { _current = Over }
+      Left _ -> r { _state = Over }
       Right newPlayOrder -> r2 {
-        _current = Turn card,
+        _state = Turn card,
         _playOrder = newPlayOrder
      }
-   _ -> r { _current = Over }
+   _ -> r { _state = Over }
 
 
 
@@ -200,7 +200,7 @@ thingy r chosen play =
         case playCard player dealt chosen of
          Nothing -> Left $ WrongCard chosen (dealt, hand)
          Just player2 ->
-           let r2 = replacePlayer (r { _current = Playing }) playerId player2 in
+           let r2 = replacePlayer (r { _state = Playing }) playerId player2 in
            case playToAction playerId chosen play of
             Left e -> Left $ InvalidPlay e -- XXX: Bad play. Translate to error type.
             Right a -> do
@@ -227,7 +227,7 @@ replacePlayer rnd pid newP =
     newRnd = rnd { _players = Map.insert pid newP (_players rnd) }
     dropPlayer p =
       case dropItem1 (_playOrder newRnd) p of
-       Left _ -> rnd { _current = Over }
+       Left _ -> rnd { _state = Over }
        Right newOrder -> newRnd { _playOrder = newOrder }
 
 
@@ -249,7 +249,7 @@ prop_allCardsPresent =
             ++ (concatMap getDiscards . Map.elems . _players) rnd
             ++ (concatMap (maybeToList . getHand) . Map.elems . _players) rnd)
             ++ (
-            case _current rnd of
+            case _state rnd of
               Turn x -> [x]
               _ -> [])
 
@@ -266,6 +266,6 @@ prop_ringIsActivePlayers r =
 
 prop_multipleActivePlayers :: Round -> Bool
 prop_multipleActivePlayers r =
-  case _current r of
+  case _state r of
    Over -> True
    _ -> (Ring.ringSize . _playOrder $ r) > 1
