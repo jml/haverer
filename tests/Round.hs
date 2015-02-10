@@ -116,6 +116,12 @@ nextPlayerNeverCurrentPlayer round =
   currentPlayer round /= nextPlayer round || currentPlayer round == Nothing
 
 
+-- FIXME: Priestess never expires. Add a property that when it's your turn you
+-- are never protected.
+
+-- XXX: Do random [0..15] for number of moves, so we exercise more of the
+-- tree, then ditch 'after one move' bollocks.
+
 suite :: TestTree
 suite = testGroup "Haverer.Round" [
   testGroup "QuickCheck tests"
@@ -127,12 +133,17 @@ suite = testGroup "Haverer.Round" [
   , testProperty "next player is not current player" nextPlayerNeverCurrentPlayer
   , testProperty "next player is not current player after turn"
     $ forAll (arbitrary >>= randomNextMove) nextPlayerNeverCurrentPlayer
+  , testProperty "next player is not current player after many moves" $
+    forAll (arbitrary >>= sequence . take 5 . iterateM randomNextMove) $ all nextPlayerNeverCurrentPlayer
   , testProperty "ring is active players" $ prop_ringIsActivePlayers
   , testProperty "ring is active players after move" $
     forAll (arbitrary >>= randomNextMove) prop_ringIsActivePlayers
+    -- XXX: Update prop_burnCardsSame to take a list, then delete twoConsecutiveRounds
   , testProperty "burn card same after move" $
     forAll twoConsecutiveRounds $ \(x, y) -> prop_burnCardsSame x y
   , testProperty "multiple active players or over" $
     forAll (arbitrary >>= randomNextMove) prop_multipleActivePlayers
+  , testProperty "multiple active players or over after many moves" $
+    forAll (arbitrary >>= sequence . take 5 . iterateM randomNextMove) $ all prop_multipleActivePlayers
   ]
  ]

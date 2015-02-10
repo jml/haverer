@@ -147,12 +147,13 @@ data BadAction = NoSuchPlayer PlayerId
                | WrongCard Card (Card, Card)
                deriving Show
 
+-- XXX: Not convinced this action malarkey is the right thing
 applyAction :: Round -> Action -> Either BadAction Round
 applyAction r NoChange = Right r
 applyAction r (Protect pid) = adjustPlayer r pid protect
 -- FIXME: This is buggy. When swapping hands and the General happens to be 'in
 -- the hand', then the target player gets the general. Instead, they should
--- get the dealt card.
+-- get the dealt card. (Actually, I think this bug is fixed now)
 applyAction r (SwapHands pid1 pid2) =
   case (getPlayer r pid1, getPlayer r pid2) of
    (Just p1, Just p2) ->
@@ -181,6 +182,7 @@ applyAction r (ForceReveal _ _) = Right r
 applyAction r (EliminateWeaker pid1 pid2) =
   case (getPlayerHand r pid1, getPlayerHand r pid2) of
    (Just c1, Just c2) ->
+     -- FIXME: This doesn't respect Priestess at all
      case compare c1 c2 of
       LT -> adjustPlayer r pid1 eliminate
       EQ -> Right r
