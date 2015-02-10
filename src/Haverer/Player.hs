@@ -56,7 +56,7 @@ data Player = Active {
   _hand :: Card,
   _protected :: Bool,
   _discard :: [Card]
-  } | Inactive [Card] deriving (Show)
+  } | Inactive [Card] deriving (Show, Eq)
 
 
 newPlayer :: Card -> Player

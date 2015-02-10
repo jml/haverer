@@ -52,7 +52,7 @@ randomCard round =
 
 
 randomPlayer :: Round -> Gen PlayerId
-randomPlayer = elements . getPlayers
+randomPlayer = elements . getActivePlayers
 
 randomAttack :: Round -> Gen Play
 randomAttack = fmap Attack . randomPlayer
@@ -100,6 +100,10 @@ randomNextMove :: Round -> Gen Round
 randomNextMove r = fmap (fromRight . applyPlay r) (randomCardPlay r)
 
 
+iterateM :: Monad m => (a -> m a) -> a -> [m a]
+iterateM f = iterate (f =<<) . return
+
+
 twoConsecutiveRounds :: Gen (Round, Round)
 twoConsecutiveRounds = do
   r1 <- arbitrary
@@ -118,6 +122,8 @@ suite = testGroup "Haverer.Round" [
   [ testProperty "allCardsPresent" prop_allCardsPresent
   , testProperty "allCardsPresent after move" $
     forAll (arbitrary >>= randomNextMove) prop_allCardsPresent
+  , testProperty "allCardsPresent after many moves" $
+    forAll (arbitrary >>= sequence . take 5 . iterateM randomNextMove) $ all prop_allCardsPresent
   , testProperty "next player is not current player" nextPlayerNeverCurrentPlayer
   , testProperty "next player is not current player after turn"
     $ forAll (arbitrary >>= randomNextMove) nextPlayerNeverCurrentPlayer

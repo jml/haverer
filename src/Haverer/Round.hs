@@ -2,6 +2,7 @@ module Haverer.Round ( BadAction
                      , currentHand
                      , currentPlayer
                      , currentTurn
+                     , getActivePlayers
                      , getPlayers
                      , newRound
                      , nextPlayer
@@ -66,6 +67,10 @@ newRound deck players =
 
 getPlayers :: Round -> [PlayerId]
 getPlayers = Map.keys . _players
+
+
+getActivePlayers :: Round -> [PlayerId]
+getActivePlayers = Ring.toList . _playOrder
 
 
 drawCard :: Round -> (Round, Maybe Card)
@@ -158,10 +163,20 @@ applyAction r (SwapHands pid1 pid2) =
   where replace pid p rnd = replacePlayer rnd pid p
 applyAction r (EliminatePlayer pid) = adjustPlayer r pid eliminate
 applyAction r (ForceDiscard pid) =
-  case getPlayerHand r pid of
-   Just Prince -> adjustPlayer r pid eliminate
-   _ -> let (r2, card) = drawCard r in
-         adjustPlayer r2 pid (flip discardAndDraw card)
+  -- XXX: Holy rightward drift Batman
+  case getPlayer r pid of
+   Nothing -> Left $ NoSuchPlayer pid
+   Just player ->
+     case getHand player of
+      Nothing -> Left $ InactivePlayer pid
+      Just Prince -> adjustPlayer r pid eliminate
+      _ ->
+        let (r2, card) = drawCard r in
+         case discardAndDraw player card of
+          Nothing -> Left $ InactivePlayer pid   -- XXX: really shouldn't get here
+          Just newP
+            | newP == player -> Right r  -- XXX: a bit of a kludge. Should just never resolve attacks on protected folk.
+            | otherwise -> Right $ replacePlayer r2 pid newP
 applyAction r (ForceReveal _ _) = Right r
 applyAction r (EliminateWeaker pid1 pid2) =
   case (getPlayerHand r pid1, getPlayerHand r pid2) of
