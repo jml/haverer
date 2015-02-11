@@ -271,8 +271,9 @@ prop_allCardsPresent =
               _ -> [])
 
 
-prop_burnCardsSame :: Round -> Round -> Bool
-prop_burnCardsSame x y = _burn x == _burn y
+prop_burnCardsSame :: [Round] -> Bool
+prop_burnCardsSame (x:xs) = all ((== _burn x) . _burn) xs
+prop_burnCardsSame [] = True
 
 
 prop_ringIsActivePlayers :: Round -> Bool

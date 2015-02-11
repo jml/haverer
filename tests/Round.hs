@@ -104,13 +104,6 @@ iterateM :: Monad m => (a -> m a) -> a -> [m a]
 iterateM f = iterate (f =<<) . return
 
 
-twoConsecutiveRounds :: Gen (Round, Round)
-twoConsecutiveRounds = do
-  r1 <- arbitrary
-  r2 <- randomNextMove r1
-  return (r1, r2)
-
-
 nextPlayerNeverCurrentPlayer :: Round -> Bool
 nextPlayerNeverCurrentPlayer round =
   currentPlayer round /= nextPlayer round || currentPlayer round == Nothing
@@ -138,9 +131,8 @@ suite = testGroup "Haverer.Round" [
   , testProperty "ring is active players" $ prop_ringIsActivePlayers
   , testProperty "ring is active players after move" $
     forAll (arbitrary >>= randomNextMove) prop_ringIsActivePlayers
-    -- XXX: Update prop_burnCardsSame to take a list, then delete twoConsecutiveRounds
   , testProperty "burn card same after move" $
-    forAll twoConsecutiveRounds $ \(x, y) -> prop_burnCardsSame x y
+    forAll (arbitrary >>= sequence . take 5 . iterateM randomNextMove) $ prop_burnCardsSame
   , testProperty "multiple active players or over" $
     forAll (arbitrary >>= randomNextMove) prop_multipleActivePlayers
   , testProperty "multiple active players or over after many moves" $
