@@ -80,7 +80,7 @@ nextPlayerNeverCurrentPlayer round =
 prop_currentPlayerNeverProtected :: Round -> Bool
 prop_currentPlayerNeverProtected round =
   case currentPlayer round >>= getPlayer round >>= isProtected of
-   Nothing -> error "current player is inactive. should never happen"
+   Nothing -> True  -- round is over
    Just protected -> not protected
 
 
