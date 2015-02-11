@@ -75,7 +75,9 @@ operateOn f player = Just $ f player
 
 
 protect :: Player -> Maybe Player
-protect = operateOn (\p -> p { _protected = True })
+protect (Inactive _) = Nothing
+protect player = Just $ player { _protected = True }
+
 
 eliminate :: Player -> Maybe Player
 eliminate = operateOn (\(Active card _ discards) -> Inactive (card:discards))
