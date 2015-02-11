@@ -4,6 +4,7 @@ module Haverer.Player (
   eliminate,
   getDiscards,
   getHand,
+  isProtected,
   makePlayerSet,
   newPlayer,
   Player,
@@ -116,3 +117,7 @@ getDiscards (Active _ _ ds) = ds
 getHand :: Player -> Maybe Card
 getHand (Inactive _) = Nothing
 getHand (Active card _ _) = Just card
+
+isProtected :: Player -> Maybe Bool
+isProtected (Inactive _) = Nothing
+isProtected (Active _ p _) = Just p

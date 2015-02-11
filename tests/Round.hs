@@ -14,7 +14,7 @@ import Test.Tasty.QuickCheck
 
 import Haverer.Action (Play(..))
 import Haverer.Deck (baseCards, Card(..), Complete, Deck, makeDeck)
-import Haverer.Player (makePlayerSet, PlayerId, PlayerSet)
+import Haverer.Player (isProtected, makePlayerSet, PlayerId, PlayerSet)
 import Haverer.Round
 
 
@@ -116,8 +116,14 @@ nextPlayerNeverCurrentPlayer round =
   currentPlayer round /= nextPlayer round || currentPlayer round == Nothing
 
 
--- FIXME: Priestess never expires. Add a property that when it's your turn you
--- are never protected.
+-- FIXME: Priestess never expires.
+prop_currentPlayerNeverProtected :: Round -> Bool
+prop_currentPlayerNeverProtected round =
+  case currentPlayer round >>= getPlayer round >>= isProtected of
+   Nothing -> error "current player is inactive. should never happen"
+   Just protected -> not protected
+
+
 
 -- XXX: Do random [0..15] for number of moves, so we exercise more of the
 -- tree, then ditch 'after one move' bollocks.
@@ -144,5 +150,8 @@ suite = testGroup "Haverer.Round" [
     forAll (arbitrary >>= randomNextMove) prop_multipleActivePlayers
   , testProperty "multiple active players or over after many moves" $
     forAll (arbitrary >>= sequence . take 5 . iterateM randomNextMove) $ all prop_multipleActivePlayers
+
+  , testProperty "never protected on your turn" $
+    forAll (arbitrary >>= sequence . take 5 . iterateM randomNextMove) $ all prop_currentPlayerNeverProtected
   ]
  ]
