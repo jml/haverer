@@ -25,6 +25,7 @@ library
                  , Haverer.Prompt
                  , Haverer.Round
                  , Haverer.Ring
+                 , Haverer.ValidMoves
   default-language:    Haskell2010
   ghc-options: -Wall
 

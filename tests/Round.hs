@@ -14,8 +14,9 @@ import Test.Tasty.QuickCheck
 
 import Haverer.Action (Play(..))
 import Haverer.Deck (baseCards, Card(..), Complete, Deck, makeDeck)
-import Haverer.Player (isProtected, makePlayerSet, PlayerId, PlayerSet)
+import Haverer.Player (isProtected, makePlayerSet, PlayerSet)
 import Haverer.Round
+import Haverer.ValidMoves (getValidMoves)
 
 
 instance Arbitrary (Deck Complete) where
@@ -36,13 +37,8 @@ shuffled xs = do
          return (y:ys)
 
 
--- TODO: Make getValidMoves :: Round -> [(Card, Play)], put that in some
--- module external to H.Round, and use *that* for generating random moves
--- here.
-
--- TODO: Once getValidMoves exists, write a property for it such that all
--- valid moves return a new, different Round, and not an Error.
-
+-- TODO: Write a property for getValidMoves such that all valid moves return a
+-- new, different Round, and not an Error.
 
 instance Arbitrary PlayerSet where
   arbitrary = fmap (fromJust . makePlayerSet) (elements [2, 3, 4])
@@ -51,47 +47,11 @@ instance Arbitrary Round where
   arbitrary = newRound <$> arbitrary <*> arbitrary
 
 
-randomCard :: Round -> Gen (Maybe Card)
-randomCard round =
-  case currentHand round of
-   Just (a, b) -> elements [Just a, Just b]
-   Nothing -> return Nothing
-
-
-randomPlayer :: Round -> Gen PlayerId
-randomPlayer = elements . getActivePlayers
-
-randomAttack :: Round -> Gen Play
-randomAttack = fmap Attack . randomPlayer
-
-randomAttackOther :: PlayerId -> Round -> Gen Play
-randomAttackOther pid round = fmap Attack (randomPlayer round `suchThat` (/= pid))
-
-randomGuess :: PlayerId -> Round -> Gen Play
-randomGuess pid round = Guess <$> (randomPlayer round `suchThat` (/= pid)) <*> elements [Clown ..]
-
-randomPlay :: Card -> PlayerId -> Round -> Gen Play
-randomPlay Soldier pid round = randomGuess pid round
-randomPlay Clown pid round = randomAttackOther pid round
-randomPlay Knight pid round = randomAttackOther pid round
-randomPlay Priestess _ _ = return NoEffect
-randomPlay Wizard _ round = randomAttack round
-randomPlay General pid round = randomAttackOther pid round
-randomPlay Minister _ _ = return NoEffect
-randomPlay Prince _ _ = return NoEffect
-
--- XXX: I think we want to have a round that's randomly generated from a
--- series of valid moves. I can't think of what benefit there might be from
--- generating _invalid_ moves.
-
 randomCardPlay :: Round -> Gen (Maybe (Card, Play))
-randomCardPlay round = do
-  case currentTurn round of
-   Nothing -> return Nothing
-   Just (pid, (dealt, chosen)) -> do
-     card <- elements [dealt, chosen]
-     play <- randomPlay card pid round
-     return $ Just $ (card, play)
+randomCardPlay round =
+  case getValidMoves round of
+   [] -> return Nothing
+   xs -> elements (fmap Just xs)
 
 
 applyPlay :: Round -> Maybe (Card, Play) -> Either BadAction Round
