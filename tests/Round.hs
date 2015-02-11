@@ -36,6 +36,13 @@ shuffled xs = do
          return (y:ys)
 
 
+-- TODO: Make getValidMoves :: Round -> [(Card, Play)], put that in some
+-- module external to H.Round, and use *that* for generating random moves
+-- here.
+
+-- TODO: Once getValidMoves exists, write a property for it such that all
+-- valid moves return a new, different Round, and not an Error.
+
 
 instance Arbitrary PlayerSet where
   arbitrary = fmap (fromJust . makePlayerSet) (elements [2, 3, 4])
