@@ -43,7 +43,10 @@ data Round = Round {
   _playOrder :: Ring PlayerId,
   _players :: Map.Map PlayerId Player,
   _state :: State,
-  _burn :: Card
+  -- XXX: Don't really *need* the following, but they've been useful for debugging.
+  _burn :: Card,
+  _log :: [(PlayerId, Card, Play)],
+  _deck :: Deck Complete
 } deriving Show
 
 
@@ -60,7 +63,9 @@ newRound deck players =
         _playOrder = fromJust (newRing playerList),
         _players = Map.fromList $ zip playerList (map newPlayer cards),
         _state = NotStarted,
-        _burn = burn
+        _burn = burn,
+        _log = [],
+        _deck = deck
         }
    _ -> error ("Given a complete deck - " ++ show deck ++ "- that didn't have enough cards for players - " ++ show players)
   where playerList = toPlayers players
@@ -223,7 +228,11 @@ thingy r chosen play =
             Left e -> Left $ InvalidPlay e -- XXX: Bad play. Translate to error type.
             Right a -> do
               r3 <- applyAction r2 a
-              return (nextTurn r3, a)
+              return (nextTurn (logTurn r3 playerId chosen play), a)
+
+
+logTurn :: Round -> PlayerId -> Card -> Play -> Round
+logTurn r pid c play = r { _log = (pid, c, play):(_log r) }
 
 
 adjustPlayer :: Round -> PlayerId -> (Player -> Maybe Player) -> Either BadAction Round
