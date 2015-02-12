@@ -72,6 +72,10 @@ iterateM :: Monad m => (a -> m a) -> a -> [m a]
 iterateM f = iterate (f =<<) . return
 
 
+-- TODO: Double check that this produces things in order.
+
+-- TODO: Error out if n < 0 *or* insist on non-negative integral via type
+-- system.
 makeN' :: (Monad m) => Int -> (a -> m a) -> a -> m [a]
 makeN' 0 _ x = return [x]
 makeN' n f x = do
