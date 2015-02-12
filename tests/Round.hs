@@ -99,7 +99,6 @@ nextPlayerNeverCurrentPlayer round =
   currentPlayer round /= nextPlayer round || currentPlayer round == Nothing
 
 
--- FIXME: Priestess never expires.
 prop_currentPlayerNeverProtected :: Round -> Bool
 prop_currentPlayerNeverProtected round =
   case currentPlayer round >>= getPlayer round >>= isProtected of
@@ -143,7 +142,7 @@ suite = testGroup "Haverer.Round" [
     forAll randomRounds $ all prop_multipleActivePlayers
   , testProperty "once deactivated stay that way" $
     forAll randomRounds $ prop_inactivePlayersRemainSo
-  -- , testProperty "never protected on your turn" $
-  --   forAll (manyMoves 5) $ all prop_currentPlayerNeverProtected
+  , testProperty "never protected on your turn" $
+    forAll randomRounds $ all prop_currentPlayerNeverProtected
   ]
  ]

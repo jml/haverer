@@ -32,7 +32,8 @@ import Haverer.Player (
   PlayerSet,
   protect,
   swapHands,
-  toPlayers
+  toPlayers,
+  unprotect
   )
 import Haverer.Ring (Ring, advance1, currentItem, dropItem1, newRing, nextItem)
 import qualified Haverer.Ring as Ring
@@ -136,13 +137,16 @@ nextTurn (Round { _state = Turn _ } ) =
   error "Cannot advance to next turn while waiting for play."
 nextTurn r =
   case (drawCard r, nextPlayer r) of
-   ((r2, Just card), Just _) ->
+   ((r2, Just card), Just pid) ->
      case advance1 (_playOrder r) of
       Left _ -> r { _state = Over }
-      Right newPlayOrder -> r2 {
-        _state = Turn card,
-        _playOrder = newPlayOrder
-     }
+      Right newPlayOrder ->
+        case getPlayer r pid >>= unprotect of
+         Nothing -> error $ "Couldn't get current player as active: " ++ (show pid)
+         Just player ->
+           replacePlayer (
+             r2 { _state = Turn card,
+                  _playOrder = newPlayOrder }) pid player
    _ -> r { _state = Over }
 
 
@@ -157,9 +161,6 @@ data BadAction = NoSuchPlayer PlayerId
 applyAction :: Round -> Action -> Either BadAction Round
 applyAction r NoChange = Right r
 applyAction r (Protect pid) = adjustPlayer r pid protect
--- FIXME: This is buggy. When swapping hands and the General happens to be 'in
--- the hand', then the target player gets the general. Instead, they should
--- get the dealt card. (Actually, I think this bug is fixed now)
 applyAction r (SwapHands pid1 pid2) =
   case (getPlayer r pid1, getPlayer r pid2) of
    (Just p1, Just p2) ->
@@ -188,7 +189,6 @@ applyAction r (ForceReveal _ _) = Right r
 applyAction r (EliminateWeaker pid1 pid2) =
   case (getPlayerHand r pid1, getPlayerHand r pid2) of
    (Just c1, Just c2) ->
-     -- FIXME: This doesn't respect Priestess at all
      case compare c1 c2 of
       LT -> adjustPlayer r pid1 eliminate
       EQ -> Right r
@@ -208,8 +208,6 @@ applyAction r (EliminateOnGuess pid guess) =
 
 -- XXX: 'thingy' is a terrible name
 
-
--- FIXME: If player plays Priestess, is protected forever
 
 thingy :: Round -> Card -> Play -> Either BadAction (Round, Action)
 thingy r chosen play =

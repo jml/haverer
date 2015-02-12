@@ -14,6 +14,7 @@ module Haverer.Player (
   protect,
   swapHands,
   toPlayers,
+  unprotect
   ) where
 
 import Data.List (nub, sort)
@@ -75,8 +76,15 @@ operateOn f player = Just $ f player
 
 
 protect :: Player -> Maybe Player
-protect (Inactive _) = Nothing
-protect player = Just $ player { _protected = True }
+protect = _setProtect True
+
+unprotect :: Player -> Maybe Player
+unprotect = _setProtect False
+
+_setProtect :: Bool -> Player -> Maybe Player
+_setProtect _ (Inactive _) = Nothing
+_setProtect protected player = Just $ player { _protected = protected }
+
 
 
 eliminate :: Player -> Maybe Player
