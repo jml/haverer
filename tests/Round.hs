@@ -142,7 +142,7 @@ suite = testGroup "Haverer.Round" [
   , testProperty "multiple active players or over" $
     forAll (arbitrary >>= randomNextMove) prop_multipleActivePlayers
   , testProperty "multiple active players or over after many moves" $
-    forAll (arbitrary >>= sequence . take 5 . iterateM randomNextMove) $ all prop_multipleActivePlayers
+    forAll (manyMoves 5) $ all prop_multipleActivePlayers
   , testProperty "once deactivated stay that way" $
     forAll (manyMoves 5) $ prop_inactivePlayersRemainSo
 --  , testProperty "never protected on your turn" $
