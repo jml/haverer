@@ -72,20 +72,27 @@ iterateM :: Monad m => (a -> m a) -> a -> [m a]
 iterateM f = iterate (f =<<) . return
 
 
--- TODO: Double check that this produces things in order.
-
--- TODO: Error out if n < 0 *or* insist on non-negative integral via type
--- system.
 makeN' :: (Monad m) => Int -> (a -> m a) -> a -> m [a]
-makeN' 0 _ x = return [x]
-makeN' n f x = do
-  y <- f x
-  ys <- makeN' (n - 1) f y
-  return (y:ys)
+makeN' n f x
+  | n == 0 = return [x]
+  | n > 0  = do y <- f x
+                ys <- makeN' (n - 1) f y
+                return (y:ys)
+  | otherwise = return []
 
 
 manyMoves :: Int -> Gen [Round]
-manyMoves n = arbitrary >>= makeN' n randomNextMove
+manyMoves 0 = return []
+manyMoves n = do
+  initial <- arbitrary
+  rest <- makeN' (n - 2) randomNextMove initial
+  return (initial:rest)
+
+
+randomRounds :: Gen [Round]
+randomRounds = do
+  num <- choose (2, 14)
+  manyMoves num
 
 nextPlayerNeverCurrentPlayer :: Round -> Bool
 nextPlayerNeverCurrentPlayer round =
@@ -118,34 +125,25 @@ prop_inactivePlayersRemainSo round =
   and [isSubListOf y x | (x, y) <- zip actives (tail actives)]
 
 
--- XXX: Do random [0..15] for number of moves, so we exercise more of the
--- tree, then ditch 'after one move' bollocks.
-
 suite :: TestTree
 suite = testGroup "Haverer.Round" [
   testGroup "QuickCheck tests"
   [ testProperty "allCardsPresent" prop_allCardsPresent
-  , testProperty "allCardsPresent after move" $
-    forAll (arbitrary >>= randomNextMove) prop_allCardsPresent
   , testProperty "allCardsPresent after many moves" $
-    forAll (manyMoves 5) $ all prop_allCardsPresent
+    forAll randomRounds $ all prop_allCardsPresent
   , testProperty "next player is not current player" nextPlayerNeverCurrentPlayer
-  , testProperty "next player is not current player after turn"
-    $ forAll (arbitrary >>= randomNextMove) nextPlayerNeverCurrentPlayer
   , testProperty "next player is not current player after many moves" $
-    forAll (manyMoves 5) $ all nextPlayerNeverCurrentPlayer
+    forAll randomRounds $ all nextPlayerNeverCurrentPlayer
   , testProperty "ring is active players" $ prop_ringIsActivePlayers
   , testProperty "ring is active players after move" $
-    forAll (arbitrary >>= randomNextMove) prop_ringIsActivePlayers
+    forAll randomRounds $ all prop_ringIsActivePlayers
   , testProperty "burn card same after move" $
-    forAll (manyMoves 5) $ prop_burnCardsSame
-  , testProperty "multiple active players or over" $
-    forAll (arbitrary >>= randomNextMove) prop_multipleActivePlayers
+    forAll randomRounds $ prop_burnCardsSame
   , testProperty "multiple active players or over after many moves" $
-    forAll (manyMoves 5) $ all prop_multipleActivePlayers
+    forAll randomRounds $ all prop_multipleActivePlayers
   , testProperty "once deactivated stay that way" $
-    forAll (manyMoves 5) $ prop_inactivePlayersRemainSo
---  , testProperty "never protected on your turn" $
---    forAll (arbitrary >>= sequence . take 5 . iterateM randomNextMove) $ all prop_currentPlayerNeverProtected
+    forAll randomRounds $ prop_inactivePlayersRemainSo
+  -- , testProperty "never protected on your turn" $
+  --   forAll (manyMoves 5) $ all prop_currentPlayerNeverProtected
   ]
  ]
