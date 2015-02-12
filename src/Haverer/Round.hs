@@ -1,5 +1,4 @@
 module Haverer.Round ( BadAction
-                     , currentHand
                      , currentPlayer
                      , currentTurn
                      , getActivePlayers

@@ -16,7 +16,20 @@ import Test.Tasty.QuickCheck
 import Haverer.Action (Play(..))
 import Haverer.Deck (baseCards, Card(..), Complete, Deck, makeDeck)
 import Haverer.Player (isProtected, makePlayerSet, PlayerSet)
-import Haverer.Round
+import Haverer.Round (
+  BadAction
+  , Round
+  , currentPlayer
+  , getActivePlayers
+  , getPlayer
+  , newRound
+  , nextPlayer
+  , thingy
+  , prop_allCardsPresent
+  , prop_burnCardsSame
+  , prop_multipleActivePlayers
+  , prop_ringIsActivePlayers
+  )
 import Haverer.ValidMoves (getValidMoves)
 
 
