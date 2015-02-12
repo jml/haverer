@@ -32,10 +32,6 @@ getValidMoves round =
 
 
 -- XXX: This sort of duplicates logic in playToAction.
-
--- TODO: At least add a test that ensures none of these return BadPlay when
--- applied with playToAction
-
 getValidPlays :: PlayerId -> [PlayerId] -> Card -> [Play]
 getValidPlays self others card =
   case card of

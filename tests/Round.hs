@@ -51,9 +51,6 @@ shuffled xs = do
          return (y:ys)
 
 
--- TODO: Write a property for getValidMoves such that all valid moves return a
--- new, different Round, and not an Error.
-
 instance Arbitrary PlayerSet where
   arbitrary = fmap (fromJust . makePlayerSet) (elements [2, 3, 4])
 

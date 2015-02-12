@@ -182,7 +182,7 @@ applyAction r (ForceDiscard pid) =
          case discardAndDraw player card of
           Nothing -> Left $ InactivePlayer pid   -- XXX: really shouldn't get here
           Just newP
-            | newP == player -> Right r  -- XXX: a bit of a kludge. Should just never resolve attacks on protected folk.
+            | newP == player -> Right r
             | otherwise -> Right $ replacePlayer r2 pid newP
 applyAction r (ForceReveal _ _) = Right r
 applyAction r (EliminateWeaker pid1 pid2) =
