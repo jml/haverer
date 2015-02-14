@@ -51,7 +51,7 @@ data Round = Round {
   _state :: State,
   -- XXX: Don't really *need* the following, but they've been useful for debugging.
   _burn :: Card,
-  _log :: [(PlayerId, Card, Play)],
+  _log :: [Event],
   _deck :: Deck Complete
 } deriving Show
 
@@ -185,13 +185,20 @@ data BadAction = NoSuchPlayer PlayerId
                deriving Show
 
 
-data Event =
+data Result =
   NothingHappened |
   Protected PlayerId |
   SwappedHands PlayerId PlayerId |
   Eliminated PlayerId |
   ForcedDiscard PlayerId |
   ForcedReveal PlayerId PlayerId
+  deriving (Eq, Show)
+
+
+data Event =
+  BustedOut PlayerId Card Card |
+  Played Action Result
+  deriving (Eq, Show)
 
 
 -- XXX: An alternative approach is to wrap this in a function that does a lot
@@ -199,7 +206,7 @@ data Event =
 --   * is the action for the current player
 --   * is the target (if present) active
 --   * is the target (if active) protected
-applyAction :: Round -> Action -> Either BadAction Event
+applyAction :: Round -> Action -> Either BadAction Result
 applyAction round (viewAction -> (_, Soldier, Guess target guess)) = do
   (_, hand) <- getActivePlayerHand round target
   return $ if hand == guess then Eliminated target else NothingHappened
@@ -231,20 +238,20 @@ applyAction _ (viewAction -> (pid, Prince, NoEffect)) =
 applyAction _ action = error $ "Invalid action: " ++ (show action)
 
 -- XXX: Lots of these re-get players from the Round that have already been
--- retrieved by applyAction. Perhaps we could include that data in the Event
+-- retrieved by applyAction. Perhaps we could include that data in the Result
 -- structure so this simply returns a Round.
-applyEvent :: Round -> Event -> Either BadAction Round
-applyEvent round NothingHappened = return round
-applyEvent round (Protected pid) = adjustPlayer round pid protect
-applyEvent round (SwappedHands pid1 pid2) = do
+applyResult :: Round -> Result -> Either BadAction Round
+applyResult round NothingHappened = return round
+applyResult round (Protected pid) = adjustPlayer round pid protect
+applyResult round (SwappedHands pid1 pid2) = do
   p1 <- getActivePlayer round pid1
   p2 <- getActivePlayer round pid2
   case swapHands p1 p2 of
    Nothing -> error $ "Inconsistency! Players inactive when swapping hands."
    Just (p1', p2') -> return $ (replace pid2 p2' . replace pid1 p1') round
    where replace pid p rnd = replacePlayer rnd pid p
-applyEvent round (Eliminated pid) = adjustPlayer round pid eliminate
-applyEvent round (ForcedDiscard pid) =
+applyResult round (Eliminated pid) = adjustPlayer round pid eliminate
+applyResult round (ForcedDiscard pid) =
   let (round', card) = drawCard round in
   do
     player <- getActivePlayer round pid
@@ -253,7 +260,7 @@ applyEvent round (ForcedDiscard pid) =
      Just player'
        | player' == player -> return round
        | otherwise -> return $ replacePlayer round' pid player'
-applyEvent round (ForcedReveal _ _) = return round
+applyResult round (ForcedReveal _ _) = return round
 
 
 -- FIXME: No way to send Clown / ForceReveal results
@@ -266,7 +273,7 @@ maybeToEither e Nothing = Left e
 maybeToEither _ (Just a) = Right a
 
 
-playTurn :: Round -> Card -> Play -> Either BadAction Round
+playTurn :: Round -> Card -> Play -> Either BadAction (Round, Event)
 playTurn round chosen play = do
   (playerId, (dealt, hand)) <- maybeToEither RoundOver (currentTurn round)
   player <- getActivePlayer round playerId
@@ -275,13 +282,9 @@ playTurn round chosen play = do
   action <- case playToAction playerId chosen play of
              Left e -> Left $ InvalidPlay e -- XXX: Bad play. Translate to error type.
              Right a -> return a
-  event <- applyAction round' action
-  round'' <- applyEvent round' event
-  return $ nextTurn round''
-
-
-logTurn :: Round -> PlayerId -> Card -> Play -> Round
-logTurn r pid c play = r { _log = (pid, c, play):(_log r) }
+  result <- applyAction round' action
+  round'' <- applyResult round' result
+  return $ (nextTurn round'', Played action result)
 
 
 adjustPlayer :: Round -> PlayerId -> (Player -> Maybe Player) -> Either BadAction Round

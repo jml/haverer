@@ -12,12 +12,12 @@ import Haverer.Player (PlayerId)
 
 
 -- | A thing that can be done with a card.
-data Play = NoEffect | Attack PlayerId | Guess PlayerId Card deriving Show
+data Play = NoEffect | Attack PlayerId | Guess PlayerId Card deriving (Eq, Show)
 
 -- | A validated card + play combination.
 -- Only guarantees that such a thing makes sense according to the rules,
 -- rather than the current state of the round.
-data Action = Action PlayerId Card Play deriving Show
+data Action = Action PlayerId Card Play deriving (Eq, Show)
 
 data BadPlay = BadActionForCard Play Card  -- ^ If that play and card are forbidden by the rules
              | BadGuess -- ^ If they try to guess a soldier

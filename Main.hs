@@ -92,8 +92,8 @@ playHand players r =
 
      play <- pickPlay card players
 
-     r2 <- case playTurn r card play of
-            Left e -> fail (show e)
-            Right a -> return a
-
-     return $ Just r2
+     (r', e) <- case playTurn r card play of
+                 Left e -> fail (show e)
+                 Right a -> return a
+     putStrLn $ "EVENT: " ++ (show e)
+     return $ Just r'

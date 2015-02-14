@@ -67,7 +67,7 @@ randomCardPlay round =
 
 applyPlay :: Round -> Maybe (Card, Play) -> Either BadAction Round
 applyPlay r Nothing = return r
-applyPlay r (Just (card, play)) = playTurn r card play
+applyPlay r (Just (card, play)) = fst <$> playTurn r card play
 
 fromRight :: Show a => Either a b -> b
 fromRight (Right b) = b
