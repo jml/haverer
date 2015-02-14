@@ -1,72 +1,54 @@
 module Haverer.Action (
-  Action(..),
   BadPlay,
   Play(..),
+  Action,
   playToAction,
+  viewAction
   ) where
 
-import Haverer.Deck
-import Haverer.Player
+import Haverer.Deck (Card(..))
+import Haverer.Player (PlayerId)
 
 
+-- | A thing that can be done with a card.
 data Play = NoEffect | Attack PlayerId | Guess PlayerId Card deriving Show
 
+-- | A validated card + play combination.
+-- Only guarantees that such a thing makes sense according to the rules,
+-- rather than the current state of the round.
+data Action = Action PlayerId Card Play deriving Show
 
--- XXX: Currently expose all of these constructors for pattern matching.
--- However, would ideally prefer only *validated* actions to be allowed to be
--- created. I *think* this is the case where phantom types will help.
-
-data Action =
-  NoChange |
-  Protect PlayerId |
-  SwapHands PlayerId PlayerId |
-  EliminatePlayer PlayerId |
-  ForceDiscard PlayerId |
-  ForceReveal PlayerId PlayerId |
-  EliminateWeaker PlayerId PlayerId |
-  EliminateOnGuess PlayerId Card
-  deriving Show
+data BadPlay = BadActionForCard Play Card  -- ^ If that play and card are forbidden by the rules
+             | BadGuess -- ^ If they try to guess a soldier
+             | SelfTarget -- ^ If they try to target themselves when forbidden
+             deriving Show
 
 
-data BadPlay = BadActionForCard Play Card | BadGuess | SelfTarget deriving Show
+viewAction :: Action -> (PlayerId, Card, Play)
+viewAction (Action pid card play) = (pid, card, play)
 
 
 playToAction :: PlayerId -> Card -> Play -> Either BadPlay Action
-playToAction pid card play = _playToAction pid card play >>= validateAction pid
+playToAction pid card play =
+  Action pid card `fmap` _validatePlay pid card play
 
 
-_playToAction :: PlayerId -> Card -> Play -> Either BadPlay Action
-_playToAction _ Soldier (Guess _ Soldier) = Left BadGuess
-_playToAction _ Soldier (Guess target guess) = Right $ EliminateOnGuess target guess
-_playToAction player Clown (Attack target) = Right $ ForceReveal player target
-_playToAction player Knight (Attack target) = Right $ EliminateWeaker player target
-_playToAction player Priestess NoEffect = Right $ Protect player
-_playToAction _ Wizard (Attack target) = Right $ ForceDiscard target
-_playToAction player General (Attack target) = Right $ SwapHands player target
-_playToAction _ Minister NoEffect = Right $ NoChange
-_playToAction player Prince NoEffect = Right $ EliminatePlayer player
-_playToAction _ card play = Left (BadActionForCard play card)
-
-
-getTarget :: Action -> Maybe PlayerId
-getTarget NoChange = Nothing
-getTarget (Protect _) = Nothing
-getTarget (SwapHands _ x) = Just x
-getTarget (EliminatePlayer x) = Just x
-getTarget (ForceDiscard x) = Just x
-getTarget (ForceReveal _ x) = Just x
-getTarget (EliminateWeaker _ x) = Just x
-getTarget (EliminateOnGuess x _) = Just x
-
-
-validateAction :: PlayerId -> Action -> Either BadPlay Action
-validateAction player action =
-  case getTarget action of
-   Nothing -> Right action
-   Just target
-     | player == target ->
-         case action of
-          (ForceDiscard _) -> Right action
-          (EliminatePlayer _) -> Right action
-          _ -> Left SelfTarget
-     | otherwise -> Right action
+_validatePlay :: PlayerId -> Card -> Play -> Either BadPlay Play
+_validatePlay _ Soldier (Guess _ Soldier) = Left BadGuess
+_validatePlay player Soldier play@(Guess target _)
+  | player == target = Left SelfTarget
+  | otherwise = Right play
+_validatePlay player Clown play@(Attack target)
+  | player == target = Left SelfTarget
+  | otherwise = Right play
+_validatePlay player Knight play@(Attack target)
+  | player == target = Left SelfTarget
+  | otherwise = Right play
+_validatePlay _ Priestess NoEffect = Right NoEffect
+_validatePlay _ Wizard play@(Attack _) = Right play
+_validatePlay player General play@(Attack target)
+  | player == target = Left SelfTarget
+  | otherwise = Right play
+_validatePlay _ Minister NoEffect = Right NoEffect
+_validatePlay _ Prince NoEffect = Right NoEffect
+_validatePlay _ card play = Left (BadActionForCard play card)

@@ -1,3 +1,5 @@
+{-# LANGUAGE ViewPatterns #-}
+
 module Haverer.Round ( BadAction
                      , currentPlayer
                      , currentTurn
@@ -13,11 +15,14 @@ module Haverer.Round ( BadAction
                      , Round
                      , thingy) where
 
+import Prelude hiding (round)
+
+import Control.Applicative ((<$>))
 import Data.Maybe (fromJust, isJust, maybeToList)
 import qualified Data.Map as Map
 
-import Haverer.Action (Action(..), BadPlay, Play, playToAction)
-import Haverer.Deck (Card(Prince), Complete, Deck, deal, Incomplete, pop)
+import Haverer.Action (BadPlay, Play(..), Action, playToAction, viewAction)
+import Haverer.Deck (Card(..), Complete, Deck, deal, Incomplete, pop)
 import qualified Haverer.Deck as Deck
 import Haverer.Player (
   discardAndDraw,
@@ -77,6 +82,28 @@ getPlayers = Map.keys . _players
 
 getActivePlayers :: Round -> [PlayerId]
 getActivePlayers = Ring.toList . _playOrder
+
+
+getPlayer :: Round -> PlayerId -> Maybe Player
+getPlayer Round { _players = players } pid = Map.lookup pid players
+
+
+getActivePlayer :: Round -> PlayerId -> Either BadAction Player
+getActivePlayer round pid = fst <$> getActivePlayerHand round pid
+
+
+getPlayerHand :: Round -> PlayerId -> Maybe Card
+getPlayerHand r pid = getHand =<< getPlayer r pid
+
+
+getActivePlayerHand :: Round -> PlayerId -> Either BadAction (Player, Card)
+getActivePlayerHand round pid =
+  case getPlayer round pid of
+   Nothing -> Left $ NoSuchPlayer pid
+   Just player ->
+     case getHand player of
+      Nothing -> Left $ InactivePlayer pid
+      Just hand -> Right (player, hand)
 
 
 drawCard :: Round -> (Round, Maybe Card)
@@ -154,51 +181,74 @@ data BadAction = NoSuchPlayer PlayerId
                | InactivePlayer PlayerId
                | InvalidPlay BadPlay
                | WrongCard Card (Card, Card)
+               | RoundOver
                deriving Show
 
--- XXX: Not convinced this action malarkey is the right thing
-applyAction :: Round -> Action -> Either BadAction Round
-applyAction r NoChange = Right r
-applyAction r (Protect pid) = adjustPlayer r pid protect
-applyAction r (SwapHands pid1 pid2) =
-  case (getPlayer r pid1, getPlayer r pid2) of
-   (Just p1, Just p2) ->
-     case swapHands p1 p2 of
-      Nothing -> Left $ InactivePlayer pid1  -- XXX: Not necessarily pid1
-      Just (newP1, newP2) -> Right $ (replace pid2 newP2 . replace pid1 newP1) r
-   _ -> Left $ NoSuchPlayer pid1  -- XXX: Not necessarily pid1
-  where replace pid p rnd = replacePlayer rnd pid p
-applyAction r (EliminatePlayer pid) = adjustPlayer r pid eliminate
-applyAction r (ForceDiscard pid) =
-  -- XXX: Holy rightward drift Batman
-  case getPlayer r pid of
-   Nothing -> Left $ NoSuchPlayer pid
-   Just player ->
-     case getHand player of
-      Nothing -> Left $ InactivePlayer pid
-      Just Prince -> adjustPlayer r pid eliminate
-      _ ->
-        let (r2, card) = drawCard r in
-         case discardAndDraw player card of
-          Nothing -> Left $ InactivePlayer pid   -- XXX: really shouldn't get here
-          Just newP
-            | newP == player -> Right r
-            | otherwise -> Right $ replacePlayer r2 pid newP
-applyAction r (ForceReveal _ _) = Right r
-applyAction r (EliminateWeaker pid1 pid2) =
-  case (getPlayerHand r pid1, getPlayerHand r pid2) of
-   (Just c1, Just c2) ->
-     case compare c1 c2 of
-      LT -> adjustPlayer r pid1 eliminate
-      EQ -> Right r
-      GT -> adjustPlayer r pid2 eliminate
-   (Nothing, Just _) -> Left $ InactivePlayer pid1
-   (_, Nothing) -> Left $ InactivePlayer pid2
-applyAction r (EliminateOnGuess pid guess) =
-  adjustPlayer r pid $ \p ->
-  case getHand p of
-   Nothing -> Nothing
-   Just card -> if card == guess then eliminate p else Just p
+
+data Event =
+  NothingHappened |
+  Protected PlayerId |
+  SwappedHands PlayerId PlayerId |
+  Eliminated PlayerId |
+  ForcedDiscard PlayerId |
+  ForcedReveal PlayerId PlayerId
+
+
+-- XXX: None of these check that source player is active, present, and
+-- currently at turn.
+applyAction :: Round -> Action -> Either BadAction Event
+applyAction round (viewAction -> (_, Soldier, Guess target guess)) = do
+  (_, hand) <- getActivePlayerHand round target
+  return $ if hand == guess then Eliminated target else NothingHappened
+applyAction _ (viewAction -> (pid, Clown, Attack target)) =
+  -- XXX: Not checking that target is active.
+  return $ ForcedReveal pid target
+applyAction round (viewAction -> (pid, Knight, Attack target)) = do
+  (_, sourceHand) <- getActivePlayerHand round pid
+  (_, targetHand) <- getActivePlayerHand round target
+  return $ case compare sourceHand targetHand of
+    LT -> Eliminated pid
+    EQ -> NothingHappened
+    GT -> Eliminated target
+applyAction _ (viewAction -> (pid, Priestess, NoEffect)) =
+  return $ Protected pid
+applyAction round (viewAction -> (_, Wizard, Attack target)) = do
+  (_, hand) <- getActivePlayerHand round target
+  return $ case hand of
+    Prince -> Eliminated target
+    _ -> ForcedDiscard target
+applyAction round (viewAction -> (pid, General, Attack target)) = do
+  _ <- getActivePlayerHand round pid
+  _ <- getActivePlayerHand round target
+  return $ SwappedHands pid target
+applyAction _ (viewAction -> (_, Minister, NoEffect)) =
+  return $ NothingHappened
+applyAction _ (viewAction -> (pid, Prince, NoEffect)) =
+  return $ Eliminated pid
+applyAction _ action = error $ "Invalid action: " ++ (show action)
+
+
+applyEvent :: Round -> Event -> Either BadAction Round
+applyEvent round NothingHappened = return round
+applyEvent round (Protected pid) = adjustPlayer round pid protect
+applyEvent round (SwappedHands pid1 pid2) = do
+  p1 <- getActivePlayer round pid1
+  p2 <- getActivePlayer round pid2
+  case swapHands p1 p2 of
+   Nothing -> error $ "Inconsistency! Players inactive when swapping hands."
+   Just (p1', p2') -> return $ (replace pid2 p2' . replace pid1 p1') round
+   where replace pid p rnd = replacePlayer rnd pid p
+applyEvent round (Eliminated pid) = adjustPlayer round pid eliminate
+applyEvent round (ForcedDiscard pid) =
+  let (round', card) = drawCard round in
+  do
+    player <- getActivePlayer round pid
+    case discardAndDraw player card of
+     Nothing -> Left $ InactivePlayer pid  -- XXX: Really shouldn't happen.
+     Just player'
+       | player' == player -> return round
+       | otherwise -> return $ replacePlayer round' pid player'
+applyEvent round (ForcedReveal _ _) = return round
 
 
 -- FIXME: No way to send Clown / ForceReveal results
@@ -207,25 +257,24 @@ applyAction r (EliminateOnGuess pid guess) =
 
 -- XXX: 'thingy' is a terrible name
 
+maybeToEither :: e -> Maybe a -> Either e a
+maybeToEither e Nothing = Left e
+maybeToEither _ (Just a) = Right a
 
-thingy :: Round -> Card -> Play -> Either BadAction (Round, Action)
-thingy r chosen play =
-  -- XXX: Holy rightward drift Batman
-  case currentTurn r of
-   Nothing -> error $ "Trying to play turn in game that's over or hasn't started: " ++ show r
-   Just (playerId, (dealt, hand)) ->
-     case getPlayer r playerId of
-      Nothing -> error $ "No such player: " ++ show playerId
-      Just player ->
-        case playCard player dealt chosen of
-         Nothing -> Left $ WrongCard chosen (dealt, hand)
-         Just player2 ->
-           let r2 = replacePlayer (r { _state = Playing }) playerId player2 in
-           case playToAction playerId chosen play of
-            Left e -> Left $ InvalidPlay e -- XXX: Bad play. Translate to error type.
-            Right a -> do
-              r3 <- applyAction r2 a
-              return (nextTurn (logTurn r3 playerId chosen play), a)
+
+thingy :: Round -> Card -> Play -> Either BadAction Round
+thingy round chosen play = do
+
+  (playerId, (dealt, hand)) <- maybeToEither RoundOver (currentTurn round)
+  player <- getActivePlayer round playerId
+  player' <- maybeToEither (WrongCard chosen (dealt, hand)) (playCard player dealt chosen)
+  let round' = replacePlayer (round { _state = Playing }) playerId player'
+  action <- case playToAction playerId chosen play of
+             Left e -> Left $ InvalidPlay e -- XXX: Bad play. Translate to error type.
+             Right a -> return a
+  event <- applyAction round' action
+  round'' <- applyEvent round' event
+  return $ nextTurn round''
 
 
 logTurn :: Round -> PlayerId -> Card -> Play -> Round
@@ -253,14 +302,6 @@ replacePlayer rnd pid newP =
       case dropItem1 (_playOrder newRnd) p of
        Left _ -> rnd { _state = Over }
        Right newOrder -> newRnd { _playOrder = newOrder }
-
-
-getPlayer :: Round -> PlayerId -> Maybe Player
-getPlayer Round { _players = players } pid = Map.lookup pid players
-
-
-getPlayerHand :: Round -> PlayerId -> Maybe Card
-getPlayerHand r pid = getHand =<< getPlayer r pid
 
 
 -- Return all the cards in the round. Intended for testing.

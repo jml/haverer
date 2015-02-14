@@ -92,9 +92,8 @@ playHand players r =
 
      play <- pickPlay card players
 
-     (r2, a) <- case thingy r card play of
-                 Left e -> fail (show e)
-                 Right a -> return a
+     r2 <- case thingy r card play of
+            Left e -> fail (show e)
+            Right a -> return a
 
-     putStrLn $ "\nThis amazing thing happened: " ++ show a
      return $ Just r2
