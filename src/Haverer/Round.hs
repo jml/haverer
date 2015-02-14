@@ -194,8 +194,11 @@ data Event =
   ForcedReveal PlayerId PlayerId
 
 
--- XXX: None of these check that source player is active, present, and
--- currently at turn.
+-- XXX: An alternative approach is to wrap this in a function that does a lot
+-- of the preliminary checks:
+--   * is the action for the current player
+--   * is the target (if present) active
+--   * is the target (if active) protected
 applyAction :: Round -> Action -> Either BadAction Event
 applyAction round (viewAction -> (_, Soldier, Guess target guess)) = do
   (_, hand) <- getActivePlayerHand round target
@@ -227,7 +230,9 @@ applyAction _ (viewAction -> (pid, Prince, NoEffect)) =
   return $ Eliminated pid
 applyAction _ action = error $ "Invalid action: " ++ (show action)
 
-
+-- XXX: Lots of these re-get players from the Round that have already been
+-- retrieved by applyAction. Perhaps we could include that data in the Event
+-- structure so this simply returns a Round.
 applyEvent :: Round -> Event -> Either BadAction Round
 applyEvent round NothingHappened = return round
 applyEvent round (Protected pid) = adjustPlayer round pid protect
