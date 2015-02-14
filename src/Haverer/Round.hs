@@ -8,12 +8,13 @@ module Haverer.Round ( BadAction
                      , getPlayers
                      , newRound
                      , nextPlayer
+                     , playTurn
                      , prop_allCardsPresent
                      , prop_burnCardsSame
                      , prop_multipleActivePlayers
                      , prop_ringIsActivePlayers
                      , Round
-                     , thingy) where
+                     ) where
 
 import Prelude hiding (round)
 
@@ -176,7 +177,6 @@ nextTurn r =
    _ -> r { _state = Over }
 
 
-
 data BadAction = NoSuchPlayer PlayerId
                | InactivePlayer PlayerId
                | InvalidPlay BadPlay
@@ -255,16 +255,14 @@ applyEvent round (ForcedReveal _ _) = return round
 
 -- FIXME: No way for communicating busting out due to minister
 
--- XXX: 'thingy' is a terrible name
 
 maybeToEither :: e -> Maybe a -> Either e a
 maybeToEither e Nothing = Left e
 maybeToEither _ (Just a) = Right a
 
 
-thingy :: Round -> Card -> Play -> Either BadAction Round
-thingy round chosen play = do
-
+playTurn :: Round -> Card -> Play -> Either BadAction Round
+playTurn round chosen play = do
   (playerId, (dealt, hand)) <- maybeToEither RoundOver (currentTurn round)
   player <- getActivePlayer round playerId
   player' <- maybeToEither (WrongCard chosen (dealt, hand)) (playCard player dealt chosen)
@@ -304,7 +302,7 @@ replacePlayer rnd pid newP =
        Right newOrder -> newRnd { _playOrder = newOrder }
 
 
--- Return all the cards in the round. Intended for testing.
+-- | Are all the cards in the Round?
 prop_allCardsPresent :: Round -> Bool
 prop_allCardsPresent =
   isJust . Deck.makeDeck . allCards

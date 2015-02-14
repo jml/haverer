@@ -24,7 +24,7 @@ import Haverer.Round (
   , getPlayer
   , newRound
   , nextPlayer
-  , thingy
+  , playTurn
   , prop_allCardsPresent
   , prop_burnCardsSame
   , prop_multipleActivePlayers
@@ -67,7 +67,7 @@ randomCardPlay round =
 
 applyPlay :: Round -> Maybe (Card, Play) -> Either BadAction Round
 applyPlay r Nothing = return r
-applyPlay r (Just (card, play)) = thingy r card play
+applyPlay r (Just (card, play)) = playTurn r card play
 
 fromRight :: Show a => Either a b -> b
 fromRight (Right b) = b
