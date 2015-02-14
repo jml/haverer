@@ -2,6 +2,7 @@ module Haverer.Action (
   BadPlay,
   Play(..),
   Action,
+  getValidPlays,
   playToAction,
   viewAction
   ) where
@@ -28,6 +29,8 @@ viewAction :: Action -> (PlayerId, Card, Play)
 viewAction (Action pid card play) = (pid, card, play)
 
 
+-- | Given a player, a card, and a choice of play, decide whether it's a valid
+-- action.
 playToAction :: PlayerId -> Card -> Play -> Either BadPlay Action
 playToAction pid card play =
   Action pid card `fmap` _validatePlay pid card play
@@ -52,3 +55,20 @@ _validatePlay player General play@(Attack target)
 _validatePlay _ Minister NoEffect = Right NoEffect
 _validatePlay _ Prince NoEffect = Right NoEffect
 _validatePlay _ card play = Left (BadActionForCard play card)
+
+
+-- | Return all valid plays.
+getValidPlays :: PlayerId -- ^ The current player
+                 -> [PlayerId] -- ^ All other active players in the round
+                 -> Card -- ^ The card they wish to play
+                 -> [Play] -- ^ All valid plays for that card
+getValidPlays self others card =
+  case card of
+   Soldier   -> [Guess tgt c | tgt <- others, c <- [Clown ..]]
+   Clown     -> fmap Attack others
+   Knight    -> fmap Attack others
+   Priestess -> [NoEffect]
+   Wizard    -> fmap Attack (self:others)
+   General   -> fmap Attack others
+   Minister  -> [NoEffect]
+   Prince    -> [NoEffect]
