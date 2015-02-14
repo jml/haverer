@@ -230,7 +230,9 @@ applyAction round (viewAction -> (_, Wizard, Attack target)) = do
 applyAction round (viewAction -> (pid, General, Attack target)) = do
   _ <- getActivePlayerHand round pid
   _ <- getActivePlayerHand round target
-  return $ SwappedHands pid target
+  -- XXX: Order matters here, easy to get wrong. Another reason for pushing
+  -- protection checking up a level.
+  return $ SwappedHands target pid
 applyAction _ (viewAction -> (_, Minister, NoEffect)) =
   return $ NothingHappened
 applyAction _ (viewAction -> (pid, Prince, NoEffect)) =
