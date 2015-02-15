@@ -1,5 +1,6 @@
 import Prelude hiding (round)
 
+import Data.Maybe (fromJust)
 import Text.Read
 
 import Haverer.Action
@@ -60,29 +61,26 @@ main = do
         Just set -> return set
         Nothing -> fail $ "Couldn't make set for " ++ (show result) ++ " players"
 
+  -- FIXME: Loop these until the *game* is over
   d <- newDeck
   let r = newRound d players
-
   putStrLn "ROUND BEGIN"
-  playRound players r
+  outcome <- playRound players r
+  roundOver outcome
 
 
-playRound :: PlayerSet -> Round -> IO ()
+playRound :: PlayerSet -> Round -> IO Victory
 playRound players r = do
   putStrLn $ toText r
   result <- playHand players r
   case result of
    Just r' -> do
      playRound players r'
-   Nothing -> roundOver r
+   Nothing -> return $ fromJust $ victory r
 
 
-roundOver :: Round -> IO ()
-roundOver r = do
-  putStrLn $ "IT IS FINISHED"
-  case victory r of
-   Just v -> putStrLn $ toText v
-   Nothing -> error $ "Calling roundOver but we can't get victory: " ++ show r
+roundOver :: Victory -> IO ()
+roundOver = putStrLn . toText
 
 
 getPlay :: PlayerSet -> Round -> (Card, Card) -> IO (Round, Event)

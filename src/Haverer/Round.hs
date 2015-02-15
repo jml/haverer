@@ -16,6 +16,7 @@ module Haverer.Round ( BadAction
                      , prop_multipleActivePlayers
                      , prop_ringIsActivePlayers
                      , Round
+                     , Victory
                      , victory
                      ) where
 
@@ -422,6 +423,11 @@ victory (round@Round { _state = Over }) =
    xs -> let (best:rest) = reverse (groupBy ((==) `on` snd) (sortBy (compare `on` snd) xs))
          in Just $ HighestCard (snd $ head best) (map fst best) (concat rest)
 victory _ = Nothing
+
+
+getWinners :: Victory -> [PlayerId]
+getWinners (SoleSurvivor pid _) = [pid]
+getWinners (HighestCard _ pids _) = pids
 
 
 instance ConsoleText Victory where
