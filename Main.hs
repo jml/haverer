@@ -18,6 +18,10 @@ pickNumPlayers =
     errMsg = "Please enter a number between 2 and 4"
 
 
+underline :: Char -> String -> String
+underline char string = string ++ '\n':take (length string) (repeat char)
+
+
 pickCardToPlay :: (Card, Card) -> IO Card
 pickCardToPlay (dealt, hand) =
   chooseItem "\nPlease choose a card: " [dealt, hand]
@@ -49,8 +53,6 @@ pickGuess players = do
   where pickGuessCard = chooseItem' "\nWhat card do they have?" 2 [Clown ..]
 
 -- XXX: Exclude self-targeting when it's not legal
-
--- XXX: Better rendering for player ids
 
 
 main :: IO ()
@@ -86,7 +88,7 @@ playHand players r =
   case currentTurn r of
    Nothing -> return Nothing
    Just (player, hand) -> do
-     putStrLn $ show player
+     putStrLn $ underline '-' $ toText player
      card <- pickCardToPlay hand
      putStrLn $ "You chose: " ++ show card
 
