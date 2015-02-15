@@ -32,7 +32,7 @@ import Haverer.Round (
   , prop_multipleActivePlayers
   , prop_ringIsActivePlayers
   )
-import Haverer.ValidMoves (getValidMoves)
+import Haverer.ValidMoves (attacksOnProtectedPlayers, getValidMoves)
 
 
 instance Arbitrary (Deck Complete) where
@@ -78,10 +78,6 @@ fromRight (Left a) = error $ "unexpected Left " ++ show a
 
 randomNextMove :: Round -> Gen Round
 randomNextMove r = fmap (fromRight . applyPlay r) (randomCardPlay r)
-
-
-iterateM :: Monad m => (a -> m a) -> a -> [m a]
-iterateM f = iterate (f =<<) . return
 
 
 makeN' :: (Monad m) => Int -> (a -> m a) -> a -> m [a]
@@ -162,21 +158,6 @@ prop_protectedUnaffected round card play =
    let Right (round', Played _ result) = playTurn round card play in
     prop_playerSame (fromJust target) round round' &&
     (result == NothingHappened)
-
-
-protectedPlayers :: Round -> [PlayerId]
-protectedPlayers round =
-  filter (\p -> Just True == (isProtected =<< getPlayer round p)) $ getActivePlayers round
-
-
-movesThatTargetPlayer :: Round -> PlayerId -> [(Card, Play)]
-movesThatTargetPlayer round target =
-  filter ((== Just target) . getTarget . snd)  (getValidMoves round)
-
-
-attacksOnProtectedPlayers :: Round -> [(Card, Play)]
-attacksOnProtectedPlayers round =
-  [(card, play) | p <- protectedPlayers round, (card, play) <- movesThatTargetPlayer round p]
 
 
 genAttacksOnProtectedPlayers :: Gen (Round, Card, Play)
