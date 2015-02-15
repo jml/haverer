@@ -3,6 +3,8 @@
 module Haverer.Round ( BadAction
                      , currentPlayer
                      , currentTurn
+                     , Event(..)  -- XXX: Probably shouldn't be exporting this
+                     , Result(..)  -- XXX: Probably shouldn't be exporting this
                      , getActivePlayers
                      , getPlayer
                      , getPlayers
@@ -22,7 +24,7 @@ import Control.Applicative ((<$>))
 import Data.Maybe (fromJust, isJust, maybeToList)
 import qualified Data.Map as Map
 
-import Haverer.Action (BadPlay, Play(..), Action, playToAction, viewAction)
+import Haverer.Action (BadPlay, Play(..), Action, getTarget, playToAction, viewAction)
 import Haverer.Deck (Card(..), Complete, Deck, deal, Incomplete, pop)
 import qualified Haverer.Deck as Deck
 import Haverer.Player (
@@ -30,6 +32,7 @@ import Haverer.Player (
   eliminate,
   getDiscards,
   getHand,
+  isProtected,
   newPlayer,
   playCard,
   PlayerId,
@@ -201,43 +204,47 @@ data Event =
   deriving (Eq, Show)
 
 
--- XXX: An alternative approach is to wrap this in a function that does a lot
--- of the preliminary checks:
---   * is the action for the current player
---   * is the target (if present) active
---   * is the target (if active) protected
-applyAction :: Round -> Action -> Either BadAction Result
-applyAction round (viewAction -> (_, Soldier, Guess target guess)) = do
-  (_, hand) <- getActivePlayerHand round target
-  return $ if hand == guess then Eliminated target else NothingHappened
-applyAction _ (viewAction -> (pid, Clown, Attack target)) =
-  -- XXX: Not checking that target is active.
-  return $ ForcedReveal pid target
-applyAction round (viewAction -> (pid, Knight, Attack target)) = do
-  (_, sourceHand) <- getActivePlayerHand round pid
-  (_, targetHand) <- getActivePlayerHand round target
-  return $ case compare sourceHand targetHand of
+-- | Given the hand of the current player, the hand of the target (if there is
+-- one), and the action being played, return the change we need to make.
+applyAction' :: Card -> Maybe Card -> Action -> Result
+applyAction' _ hand (viewAction -> (_, Soldier, Guess target guess)) =
+  if fromJust hand == guess
+  then Eliminated target
+  else NothingHappened
+applyAction' _ _ (viewAction -> (pid, Clown, Attack target)) = ForcedReveal pid target
+applyAction' sourceHand targetHand (viewAction -> (pid, Knight, Attack target)) =
+  case compare sourceHand (fromJust targetHand) of
     LT -> Eliminated pid
     EQ -> NothingHappened
     GT -> Eliminated target
-applyAction _ (viewAction -> (pid, Priestess, NoEffect)) =
-  return $ Protected pid
-applyAction round (viewAction -> (_, Wizard, Attack target)) = do
-  (_, hand) <- getActivePlayerHand round target
-  return $ case hand of
-    Prince -> Eliminated target
+applyAction' _ _ (viewAction -> (pid, Priestess, NoEffect)) = Protected pid
+applyAction' _ hand (viewAction -> (_, Wizard, Attack target)) =
+  case hand of
+    Just Prince -> Eliminated target
     _ -> ForcedDiscard target
-applyAction round (viewAction -> (pid, General, Attack target)) = do
-  _ <- getActivePlayerHand round pid
-  _ <- getActivePlayerHand round target
-  -- XXX: Order matters here, easy to get wrong. Another reason for pushing
-  -- protection checking up a level.
-  return $ SwappedHands target pid
-applyAction _ (viewAction -> (_, Minister, NoEffect)) =
-  return $ NothingHappened
-applyAction _ (viewAction -> (pid, Prince, NoEffect)) =
-  return $ Eliminated pid
-applyAction _ action = error $ "Invalid action: " ++ (show action)
+applyAction' _ _ (viewAction -> (pid, General, Attack target)) = SwappedHands target pid
+applyAction' _ _ (viewAction -> (_, Minister, NoEffect)) = NothingHappened
+applyAction' _ _ (viewAction -> (pid, Prince, NoEffect)) = Eliminated pid
+applyAction' _ _ action = error $ "Invalid action: " ++ (show action)
+
+
+-- | Translate a player action into a change to make to the round.
+-- Will return errors if the action is for or against an inactive or
+-- nonexistent player.
+--
+-- If the target player is protected, will return the identity result,
+-- NothingHappened.
+applyAction :: Round -> Action -> Either BadAction Result
+applyAction round action@(viewAction -> (pid, _, play)) = do
+  (_, sourceHand) <- getActivePlayerHand round pid
+  case getTarget play of
+   Nothing -> return $ applyAction' sourceHand Nothing action
+   Just target -> do
+     (targetPlayer, targetHand) <- getActivePlayerHand round target
+     if fromJust (isProtected targetPlayer)
+       then return NothingHappened
+       else return $ applyAction' sourceHand (Just targetHand) action
+
 
 -- XXX: Lots of these re-get players from the Round that have already been
 -- retrieved by applyAction. Perhaps we could include that data in the Result
@@ -278,9 +285,12 @@ maybeToEither _ (Just a) = Right a
 playTurn :: Round -> Card -> Play -> Either BadAction (Round, Event)
 playTurn round chosen play = do
   (playerId, (dealt, hand)) <- maybeToEither RoundOver (currentTurn round)
+  -- The card the player chose is now put in front of them, and the card they
+  -- didn't chose is now their hand.
   player <- getActivePlayer round playerId
   player' <- maybeToEither (WrongCard chosen (dealt, hand)) (playCard player dealt chosen)
   let round' = replacePlayer (round { _state = Playing }) playerId player'
+  -- An Action is a valid player, card, play combination.
   action <- case playToAction playerId chosen play of
              Left e -> Left $ InvalidPlay e -- XXX: Bad play. Translate to error type.
              Right a -> return a

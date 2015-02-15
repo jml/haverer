@@ -13,12 +13,14 @@ import System.Random.Shuffle (shuffle)
 import Test.Tasty
 import Test.Tasty.QuickCheck
 
-import Haverer.Action (Play(..))
+import Haverer.Action (Play(..), getTarget)
 import Haverer.Deck (baseCards, Card(..), Complete, Deck, makeDeck)
-import Haverer.Player (isProtected, makePlayerSet, PlayerSet)
+import Haverer.Player (getHand, getDiscards, isProtected, makePlayerSet, PlayerId, PlayerSet)
 import Haverer.Round (
   BadAction
   , Round
+  , Event(Played)
+  , Result(NothingHappened)
   , currentPlayer
   , getActivePlayers
   , getPlayer
@@ -104,6 +106,9 @@ randomRounds = do
   num <- choose (2, 14)
   manyMoves num
 
+randomRound :: Gen Round
+randomRound = last <$> randomRounds
+
 nextPlayerNeverCurrentPlayer :: Round -> Bool
 nextPlayerNeverCurrentPlayer round =
   currentPlayer round /= nextPlayer round || currentPlayer round == Nothing
@@ -134,6 +139,54 @@ prop_inactivePlayersRemainSo round =
   and [isSubListOf y x | (x, y) <- zip actives (tail actives)]
 
 
+prop_playerSame :: PlayerId -> Round -> Round -> Bool
+prop_playerSame pid round round' =
+  let player = getPlayer round pid
+      player' = getPlayer round' pid in
+   case currentPlayer round' of
+    Just p | p == pid ->
+               (getHand =<< player) == (getHand =<< player') &&
+               (getDiscards <$> player) == (getDiscards <$> player')
+    _ -> player == player'
+
+
+prop_protectedUnaffected :: Round -> Card -> Play -> Property
+prop_protectedUnaffected round card play =
+  let target = getTarget play
+      targetPlayer = getPlayer round =<< target
+  in
+    -- XXX: That the version of the player in the new round is the same as the
+    -- old one unless it's now their turn, in which case everything is the
+    -- same *except* for protected status.
+   (Just True == (isProtected =<< targetPlayer)) ==>
+   let Right (round', Played _ result) = playTurn round card play in
+    prop_playerSame (fromJust target) round round' &&
+    (result == NothingHappened)
+
+
+protectedPlayers :: Round -> [PlayerId]
+protectedPlayers round =
+  filter (\p -> Just True == (isProtected =<< getPlayer round p)) $ getActivePlayers round
+
+
+movesThatTargetPlayer :: Round -> PlayerId -> [(Card, Play)]
+movesThatTargetPlayer round target =
+  filter ((== Just target) . getTarget . snd)  (getValidMoves round)
+
+
+attacksOnProtectedPlayers :: Round -> [(Card, Play)]
+attacksOnProtectedPlayers round =
+  [(card, play) | p <- protectedPlayers round, (card, play) <- movesThatTargetPlayer round p]
+
+
+genAttacksOnProtectedPlayers :: Gen (Round, Card, Play)
+genAttacksOnProtectedPlayers = do
+  -- XXX: Can I express this without calling attacksOnProtectedPlayers twice?
+  round <- randomRound `suchThat` (not . null . attacksOnProtectedPlayers)
+  (card, play) <- elements $ attacksOnProtectedPlayers round
+  return (round, card, play)
+
+
 suite :: TestTree
 suite = testGroup "Haverer.Round" [
   testGroup "QuickCheck tests"
@@ -154,5 +207,7 @@ suite = testGroup "Haverer.Round" [
     forAll randomRounds $ prop_inactivePlayersRemainSo
   , testProperty "never protected on your turn" $
     forAll randomRounds $ all prop_currentPlayerNeverProtected
+  , testProperty "attacks on protected never succeed" $
+    forAll genAttacksOnProtectedPlayers $ \(r, c, p) -> prop_protectedUnaffected r c p
   ]
  ]

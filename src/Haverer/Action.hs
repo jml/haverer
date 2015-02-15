@@ -2,6 +2,7 @@ module Haverer.Action (
   BadPlay,
   Play(..),
   Action,
+  getTarget,
   getValidPlays,
   playToAction,
   viewAction
@@ -28,6 +29,11 @@ data BadPlay = BadActionForCard Play Card  -- ^ If that play and card are forbid
 viewAction :: Action -> (PlayerId, Card, Play)
 viewAction (Action pid card play) = (pid, card, play)
 
+
+getTarget :: Play -> Maybe PlayerId
+getTarget NoEffect = Nothing
+getTarget (Attack target) = Just target
+getTarget (Guess target _) = Just target
 
 -- | Given a player, a card, and a choice of play, decide whether it's a valid
 -- action.
