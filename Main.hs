@@ -79,7 +79,10 @@ playRound players r = do
 
 roundOver :: Round -> IO ()
 roundOver r = do
-  putStrLn $ "IT IS FINISHED: " ++ show r
+  putStrLn $ "IT IS FINISHED"
+  case victory r of
+   Just v -> putStrLn $ toText v
+   Nothing -> error $ "Calling roundOver but we can't get victory: " ++ show r
 
 
 getPlay :: PlayerSet -> Round -> (Card, Card) -> IO (Round, Event)

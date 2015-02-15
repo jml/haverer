@@ -16,12 +16,14 @@ module Haverer.Round ( BadAction
                      , prop_multipleActivePlayers
                      , prop_ringIsActivePlayers
                      , Round
+                     , victory
                      ) where
 
 import Prelude hiding (round)
 
 import Control.Applicative ((<$>))
-import Data.List (intercalate)
+import Data.Function (on)
+import Data.List (groupBy, intercalate, sortBy)
 import Data.Maybe (fromJust, isJust, maybeToList)
 import qualified Data.Map as Map
 
@@ -399,6 +401,36 @@ bustOut :: Round -> Card -> Card -> PlayerId -> Either BadAction (Round, Event)
 bustOut round dealt hand pid = do
   round' <- adjustPlayer round pid eliminate
   return (nextTurn round', BustedOut pid dealt hand)
+
+
+data Victory =
+  SoleSurvivor PlayerId Card  -- |^ The given player is the only survivor.
+  | HighestCard Card [PlayerId] [(PlayerId, Card)]  -- |^  These players have the highest card.
+  deriving (Eq, Show)
+
+
+-- | The currently surviving players in the round, with their cards.
+survivors :: Round -> [(PlayerId, Card)]
+survivors = Map.toList . Map.mapMaybe getHand . _players
+
+
+-- | If the Round is Over, return the Victory data. Otherwise, Nothing.
+victory :: Round -> Maybe Victory
+victory (round@Round { _state = Over }) =
+  case survivors round of
+   (pid, card):[] -> Just $ SoleSurvivor pid card
+   xs -> let (best:rest) = reverse (groupBy ((==) `on` snd) (sortBy (compare `on` snd) xs))
+         in Just $ HighestCard (snd $ head best) (map fst best) (concat rest)
+victory _ = Nothing
+
+
+instance ConsoleText Victory where
+  toText (SoleSurvivor pid card) =
+    toText pid ++ " wins as the only remaining player, holding " ++ toText card
+  toText (HighestCard card (winner:[]) _) =
+    toText winner ++ " wins holding " ++ toText card
+  toText (HighestCard card winners _) =
+    "Many winners holding " ++ toText card ++ ": " ++ (intercalate ", " (map toText winners))
 
 
 adjustPlayer :: Round -> PlayerId -> (Player -> Maybe Player) -> Either BadAction Round
