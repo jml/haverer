@@ -201,7 +201,7 @@ data Result =
   SwappedHands PlayerId PlayerId |
   Eliminated PlayerId |
   ForcedDiscard PlayerId |
-  ForcedReveal PlayerId PlayerId
+  ForcedReveal PlayerId PlayerId Card
   deriving (Eq, Show)
 
 
@@ -218,7 +218,8 @@ applyAction' _ hand (viewAction -> (_, Soldier, Guess target guess)) =
   if fromJust hand == guess
   then Eliminated target
   else NothingHappened
-applyAction' _ _ (viewAction -> (pid, Clown, Attack target)) = ForcedReveal pid target
+applyAction' _ (Just targetCard) (viewAction -> (pid, Clown, Attack target)) =
+  ForcedReveal pid target targetCard
 applyAction' sourceHand targetHand (viewAction -> (pid, Knight, Attack target)) =
   case compare sourceHand (fromJust targetHand) of
     LT -> Eliminated pid
@@ -276,10 +277,8 @@ applyResult round (ForcedDiscard pid) =
      Just player'
        | player' == player -> return round
        | otherwise -> return $ replacePlayer round' pid player'
-applyResult round (ForcedReveal _ _) = return round
+applyResult round (ForcedReveal _ _ _) = return round
 
-
--- FIXME: No way to send Clown / ForceReveal results
 
 
 maybeToEither :: e -> Maybe a -> Either e a
