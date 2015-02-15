@@ -20,10 +20,6 @@ pickNumPlayers =
     errMsg = "Please enter a number between 2 and 4"
 
 
-underline :: Char -> String -> String
-underline char string = string ++ '\n':take (length string) (repeat char)
-
-
 pickCardToPlay :: (Card, Card) -> IO Card
 pickCardToPlay (dealt, hand) =
   chooseItem "\nPlease choose a card: " [dealt, hand]
@@ -67,11 +63,13 @@ main = do
   d <- newDeck
   let r = newRound d players
 
+  putStrLn "ROUND BEGIN"
   playRound players r
 
 
 playRound :: PlayerSet -> Round -> IO ()
 playRound players r = do
+  putStrLn $ toText r
   result <- playHand players r
   case result of
    Just r' -> do
@@ -107,5 +105,5 @@ playHand players r =
 
      (round', event) <- getPlay players r hand
 
-     putStrLn $ (toText event) ++ "\n\n"
+     putStrLn $ "\n" ++ (toText event) ++ "\n"
      return $ Just round'

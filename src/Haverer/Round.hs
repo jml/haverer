@@ -21,6 +21,7 @@ module Haverer.Round ( BadAction
 import Prelude hiding (round)
 
 import Control.Applicative ((<$>))
+import Data.List (intercalate)
 import Data.Maybe (fromJust, isJust, maybeToList)
 import qualified Data.Map as Map
 
@@ -50,7 +51,7 @@ import Haverer.Player (
   toPlayers,
   unprotect
   )
-import Haverer.Prompt (ConsoleText, toText)
+import Haverer.Prompt (ConsoleText, toText, underline)
 import Haverer.Ring (Ring, advance1, currentItem, dropItem1, newRing, nextItem)
 import qualified Haverer.Ring as Ring
 
@@ -65,6 +66,23 @@ data Round = Round {
   _log :: [Event],
   _deck :: Deck Complete
 } deriving Show
+
+
+
+instance ConsoleText Round where
+
+  toText round =
+    "Cards remaining: " ++ (show . length . Deck.toList . _stack $ round) ++ ".\n\n" ++
+    underline '-' "All discards" ++ "\n" ++
+    Map.foldrWithKey (\k a b -> formatPlayer k a ++ "\n" ++ b) "" (_players round)
+    where
+      formatPlayer pid player =
+        toText pid ++ ": " ++ intercalate ", " (map toText (getDiscards player)) ++ playerStatus player
+      playerStatus player =
+        case isProtected player of
+         Just True -> " (protected)"
+         Just False -> ""
+         Nothing -> " (eliminated)"
 
 
 data State = NotStarted | Turn Card | Playing | Over deriving Show
@@ -219,7 +237,7 @@ instance ConsoleText Event where
   -- Priestess.
   toText (Played (viewAction -> (pid1, Soldier, Guess pid2 card)) NothingHappened) =
     toText pid1 ++ " wrongly guessed " ++ toText pid2 ++ " had a " ++ toText card
-    ++ ". Nothing happened."
+    ++ ". Nothing happened, maybe it was the right guess and they were protected."
 
   -- FIXME: Don't have quite enough information here to disambiguate between
   -- Knight attack failing due to tie and Knight attack failing due to

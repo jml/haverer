@@ -18,6 +18,10 @@ instance ConsoleText Int where
   toText = show
 
 
+underline :: Char -> String -> String
+underline char string = string ++ '\n':take (length string) (repeat char)
+
+
 prompt :: ConsoleText e => String -> (String -> Either e a) -> IO (Either e a)
 prompt promptStr parser = do
   putStr promptStr
