@@ -2,6 +2,7 @@ module Haverer.Action (
   BadPlay,
   Play(..),
   Action,
+  bustingHand,
   getTarget,
   getValidPlays,
   playToAction,
@@ -34,6 +35,7 @@ getTarget :: Play -> Maybe PlayerId
 getTarget NoEffect = Nothing
 getTarget (Attack target) = Just target
 getTarget (Guess target _) = Just target
+
 
 -- | Given a player, a card, and a choice of play, decide whether it's a valid
 -- action.
@@ -78,3 +80,12 @@ getValidPlays self others card =
    General   -> fmap Attack others
    Minister  -> [NoEffect]
    Prince    -> [NoEffect]
+
+
+-- | If you're holding the Minister, there's a potential to "bust out" -- to
+-- have to immediately leave the round because you're holding another high
+-- card.
+bustingHand :: Card -> Card -> Bool
+bustingHand Minister card = card >= Wizard
+bustingHand card Minister = bustingHand Minister card
+bustingHand _ _ = False

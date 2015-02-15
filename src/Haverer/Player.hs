@@ -120,6 +120,7 @@ playCard (Active hand protected discards) dealt chosen =
        then Just $ Active hand protected (dealt:discards)
        else Nothing
 
+
 getDiscards :: Player -> [Card]
 getDiscards (Inactive ds) = ds
 getDiscards (Active _ _ ds) = ds

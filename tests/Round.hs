@@ -13,15 +13,16 @@ import System.Random.Shuffle (shuffle)
 import Test.Tasty
 import Test.Tasty.QuickCheck
 
-import Haverer.Action (Play(..), getTarget)
+import Haverer.Action (Play(..), bustingHand, getTarget)
 import Haverer.Deck (baseCards, Card(..), Complete, Deck, makeDeck)
 import Haverer.Player (getHand, getDiscards, isProtected, makePlayerSet, PlayerId, PlayerSet)
 import Haverer.Round (
   BadAction
   , Round
-  , Event(Played)
+  , Event(Played, BustedOut)
   , Result(NothingHappened)
   , currentPlayer
+  , currentTurn
   , getActivePlayers
   , getPlayer
   , newRound
@@ -105,6 +106,7 @@ randomRounds = do
 randomRound :: Gen Round
 randomRound = last <$> randomRounds
 
+
 nextPlayerNeverCurrentPlayer :: Round -> Bool
 nextPlayerNeverCurrentPlayer round =
   currentPlayer round /= nextPlayer round || currentPlayer round == Nothing
@@ -154,10 +156,18 @@ prop_protectedUnaffected round card play =
     -- XXX: That the version of the player in the new round is the same as the
     -- old one unless it's now their turn, in which case everything is the
     -- same *except* for protected status.
-   (Just True == (isProtected =<< targetPlayer)) ==>
+   (Just True == (isProtected =<< targetPlayer) && not (busted round)) ==>
    let Right (round', Played _ result) = playTurn round card play in
     prop_playerSame (fromJust target) round round' &&
     (result == NothingHappened)
+  where busted r = let Just (_, (c1, c2)) = currentTurn r in bustingHand c1 c2
+
+
+roundIsBusted :: Round -> Bool
+roundIsBusted round =
+  case currentTurn round of
+   Nothing -> False
+   Just (_, (c1, c2)) -> bustingHand c1 c2
 
 
 genAttacksOnProtectedPlayers :: Gen (Round, Card, Play)
@@ -166,6 +176,15 @@ genAttacksOnProtectedPlayers = do
   round <- randomRound `suchThat` (not . null . attacksOnProtectedPlayers)
   (card, play) <- elements $ attacksOnProtectedPlayers round
   return (round, card, play)
+
+
+prop_ministerBustsOut :: Round -> Card -> Play -> Property
+prop_ministerBustsOut round card play =
+  let Just (pid, (dealt, hand)) = currentTurn round in
+  bustingHand dealt hand ==>
+  let Right (round', event) = playTurn round card play in
+   not (pid `elem` getActivePlayers round') &&
+   event == BustedOut pid dealt hand
 
 
 suite :: TestTree
@@ -190,5 +209,8 @@ suite = testGroup "Haverer.Round" [
     forAll randomRounds $ all prop_currentPlayerNeverProtected
   , testProperty "attacks on protected never succeed" $
     forAll genAttacksOnProtectedPlayers $ \(r, c, p) -> prop_protectedUnaffected r c p
+  , testProperty "minister + high card deactivates player" $
+    forAll (randomRound `suchThat` roundIsBusted) $
+    \round -> forAll (elements $ getValidMoves round) $ \(c, p) -> prop_ministerBustsOut round c p
   ]
  ]

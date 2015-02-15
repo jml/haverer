@@ -24,7 +24,14 @@ import Control.Applicative ((<$>))
 import Data.Maybe (fromJust, isJust, maybeToList)
 import qualified Data.Map as Map
 
-import Haverer.Action (BadPlay, Play(..), Action, getTarget, playToAction, viewAction)
+import Haverer.Action (
+  BadPlay,
+  bustingHand,
+  Play(..),
+  Action,
+  getTarget,
+  playToAction,
+  viewAction)
 import Haverer.Deck (Card(..), Complete, Deck, deal, Incomplete, pop)
 import qualified Haverer.Deck as Deck
 import Haverer.Player (
@@ -274,8 +281,6 @@ applyResult round (ForcedReveal _ _) = return round
 
 -- FIXME: No way to send Clown / ForceReveal results
 
--- FIXME: No way for communicating busting out due to minister
-
 
 maybeToEither :: e -> Maybe a -> Either e a
 maybeToEither e Nothing = Left e
@@ -285,18 +290,27 @@ maybeToEither _ (Just a) = Right a
 playTurn :: Round -> Card -> Play -> Either BadAction (Round, Event)
 playTurn round chosen play = do
   (playerId, (dealt, hand)) <- maybeToEither RoundOver (currentTurn round)
+  player <- getActivePlayer round playerId
   -- The card the player chose is now put in front of them, and the card they
   -- didn't chose is now their hand.
-  player <- getActivePlayer round playerId
   player' <- maybeToEither (WrongCard chosen (dealt, hand)) (playCard player dealt chosen)
   let round' = replacePlayer (round { _state = Playing }) playerId player'
-  -- An Action is a valid player, card, play combination.
-  action <- case playToAction playerId chosen play of
-             Left e -> Left $ InvalidPlay e -- XXX: Bad play. Translate to error type.
-             Right a -> return a
-  result <- applyAction round' action
-  round'' <- applyResult round' result
-  return $ (nextTurn round'', Played action result)
+  if bustingHand dealt hand
+    then bustOut round' dealt hand playerId
+    else do
+      -- An Action is a valid player, card, play combination.
+      action <- case playToAction playerId chosen play of
+                 Left e -> Left $ InvalidPlay e -- XXX: Bad play. Translate to error type.
+                 Right a -> return a
+      result <- applyAction round' action
+      round'' <- applyResult round' result
+      return $ (nextTurn round'', Played action result)
+
+
+bustOut :: Round -> Card -> Card -> PlayerId -> Either BadAction (Round, Event)
+bustOut round dealt hand pid = do
+  round' <- adjustPlayer round pid eliminate
+  return (nextTurn round', BustedOut pid dealt hand)
 
 
 adjustPlayer :: Round -> PlayerId -> (Player -> Maybe Player) -> Either BadAction Round
