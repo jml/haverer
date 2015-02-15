@@ -1,11 +1,13 @@
+import Prelude hiding (round)
+
 import Text.Read
-import Text.Show.Pretty
 
 import Haverer.Action
 import Haverer.Deck
 import Haverer.Player
 import Haverer.Prompt
 import Haverer.Round
+
 
 pickNumPlayers :: IO Int
 pickNumPlayers =
@@ -73,7 +75,6 @@ playRound players r = do
   result <- playHand players r
   case result of
    Just r' -> do
-     putStrLn $ ppShow r'
      playRound players r'
    Nothing -> roundOver r
 
@@ -83,19 +84,28 @@ roundOver r = do
   putStrLn $ "IT IS FINISHED: " ++ show r
 
 
+getPlay :: PlayerSet -> Round -> (Card, Card) -> IO (Round, Event)
+getPlay players round hand = do
+  card <- pickCardToPlay hand
+  putStrLn $ "You chose: " ++ show card
+
+  play <- pickPlay card players
+
+  case playTurn round card play of
+   Left e -> do
+     putStrLn $ "ERROR: " ++ (show e)
+     getPlay players round hand
+   Right a -> return a
+
+
 playHand :: PlayerSet -> Round -> IO (Maybe Round)
 playHand players r =
   case currentTurn r of
    Nothing -> return Nothing
    Just (player, hand) -> do
      putStrLn $ underline '-' $ toText player
-     card <- pickCardToPlay hand
-     putStrLn $ "You chose: " ++ show card
 
-     play <- pickPlay card players
+     (round', event) <- getPlay players r hand
 
-     (r', e) <- case playTurn r card play of
-                 Left e -> fail (show e)
-                 Right a -> return a
-     putStrLn $ "EVENT: " ++ (show e)
-     return $ Just r'
+     putStrLn $ "EVENT: " ++ (show event) ++ "\n\n"
+     return $ Just round'
