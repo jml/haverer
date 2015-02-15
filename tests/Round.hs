@@ -6,7 +6,7 @@ module Round where
 import Prelude hiding (round)
 
 import Control.Applicative ((<*>), (<$>))
-import Data.List (delete, sort)
+import Data.List (delete, isPrefixOf, sort)
 import Data.Maybe (fromJust)
 
 import System.Random.Shuffle (shuffle)
@@ -16,6 +16,7 @@ import Test.Tasty.QuickCheck
 import Haverer.Action (Play(..), bustingHand, getTarget)
 import Haverer.Deck (baseCards, Card(..), Complete, Deck, makeDeck)
 import Haverer.Player (getHand, getDiscards, isProtected, makePlayerSet, PlayerId, PlayerSet)
+import Haverer.Prompt (toText)
 import Haverer.Round (
   BadAction
   , Round
@@ -105,6 +106,20 @@ randomRounds = do
 
 randomRound :: Gen Round
 randomRound = last <$> randomRounds
+
+
+roundAndPlay :: Gen (Round, Card, Play)
+roundAndPlay = do
+  round <- randomRound `suchThat` (not . null . getValidMoves)
+  (card, play) <- elements $ getValidMoves round
+  return (round, card, play)
+
+
+inRoundEvent :: Gen Event
+inRoundEvent = do
+  (round, card, play) <- roundAndPlay
+  let Right (_, event) = playTurn round card play in
+   return event
 
 
 nextPlayerNeverCurrentPlayer :: Round -> Bool
@@ -212,5 +227,7 @@ suite = testGroup "Haverer.Round" [
   , testProperty "minister + high card deactivates player" $
     forAll (randomRound `suchThat` roundIsBusted) $
     \round -> forAll (elements $ getValidMoves round) $ \(c, p) -> prop_ministerBustsOut round c p
+  , testProperty "event toText coverage" $
+    forAll inRoundEvent $ not . isPrefixOf "UNKNOWN" . toText
   ]
  ]

@@ -107,5 +107,5 @@ playHand players r =
 
      (round', event) <- getPlay players r hand
 
-     putStrLn $ "EVENT: " ++ (show event) ++ "\n\n"
+     putStrLn $ (toText event) ++ "\n\n"
      return $ Just round'
