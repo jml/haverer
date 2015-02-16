@@ -41,6 +41,16 @@ under the Apache license.
 Please file issues on the
 [Github issue tracker](https://github.com/jml/haverer/issues)
 
+## Patches
+
+Are most welcome.
+
+## History
+
+The original implementation of this game is called
+[loveletter](https://github.com/jml/loveletter) and is written in
+[Rust](http://www.rust-lang.org/).
+
 ## Thanks
 
 Thanks to the following people, who have helped with advice, kindness, or by patiently
