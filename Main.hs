@@ -66,7 +66,8 @@ main = do
         Nothing -> fail $ "Couldn't make set for " ++ (show result) ++ " players"
 
   let game = Game.newGame players
-  putStrLn $ "GAME BEGIN"
+  putStrLn $ underline '=' "GAME BEGIN"
+  putStrLn ""
   outcome <- playGame game
   putStrLn $ "GAME OVER"
   case Game.winners outcome of
@@ -80,7 +81,8 @@ playGame game = do
   -- FIXME: Loop these until the *game* is over
   putStrLn $ formatScores $ Game.scores game
   r <- Game.newRound game
-  putStrLn "ROUND BEGIN"
+  putStrLn $ underline '=' ("ROUND #" ++ show (Game.roundsPlayed game + 1) ++ " BEGIN")
+  putStrLn ""
   outcome <- playRound (Game.players game) r
   roundOver outcome
   case Game.playersWon game (getWinners outcome) of
@@ -88,7 +90,7 @@ playGame game = do
    Right game' -> playGame game'
 
 
-formatScores :: [(PlayerId, Game.Score)] -> String
+formatScores :: [(PlayerId, Int)] -> String
 formatScores scores =
   underline '-' "Scores" ++ "\n" ++
   unlines (map formatScore scores)

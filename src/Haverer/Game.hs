@@ -1,14 +1,12 @@
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
-
 module Haverer.Game (
   Game,
   Outcome,
-  Score,
   finalScores,
   newGame,
   newRound,
   players,
   playersWon,
+  roundsPlayed,
   scores,
   winners
   ) where
@@ -23,36 +21,31 @@ import Haverer.Player (
   PlayerSet,
   toPlayers,
   )
-import Haverer.Prompt (ConsoleText, toText)
 import Haverer.Round (Round)
 import qualified Haverer.Round as Round
 
 
-newtype Score = Score Int deriving (Eq, Ord, Show, Num)
+type PlayerScores = Counter.Counter PlayerId Int
 
-instance ConsoleText Score where
-  toText (Score n) = show n
-
-
-type PlayerScores = Counter.Counter PlayerId Score
 
 data Game = Game {
-  _winningScore :: Score,
-  _players :: Counter.Counter PlayerId Score,
-  _playerSet :: PlayerSet
+  _winningScore :: Int,
+  _players :: PlayerScores,
+  _playerSet :: PlayerSet,
+  _roundsPlayed :: Int
   } deriving Show
 
 
-data Outcome = Outcome { _unoutcome :: (Counter.Counter PlayerId Score) }
-               deriving Show
+data Outcome = Outcome { _unoutcome :: PlayerScores } deriving Show
 
 
 -- | Create a new game for the given set of players.
 newGame :: PlayerSet -> Game
 newGame ps = Game {
-  _winningScore = Score 4, -- XXX: in some rule sets, this varies based on the number of players
+  _winningScore = 4, -- XXX: in some rule sets, this varies based on the number of players
   _players = (Counter.initialize $ toPlayers ps),
-  _playerSet = ps
+  _playerSet = ps,
+  _roundsPlayed = 0
   }
 
 -- | Start a new round of the game with an already-shuffled deck of cards.
@@ -65,10 +58,17 @@ newRound game = newRound' game <$> newDeck
 
 -- | Indicate that the specified players won.
 playersWon :: Game -> [PlayerId] -> Either Outcome Game
-playersWon game ps = onCounter game (flip Counter.incrementMany ps)
+playersWon game ps =
+  bumpRoundsPlayed <$> onCounter game (flip Counter.incrementMany ps)
+  where
+    bumpRoundsPlayed g = g { _roundsPlayed = (_roundsPlayed g) + 1 }
+
+-- | Return the number of rounds played.
+roundsPlayed :: Game -> Int
+roundsPlayed = _roundsPlayed
 
 -- | Return the current scores of all the players.
-scores :: Game -> [(PlayerId, Score)]
+scores :: Game -> [(PlayerId, Int)]
 scores = Counter.toList . _players
 
 -- | Return the set of all players
@@ -80,7 +80,7 @@ winners :: Outcome -> [PlayerId]
 winners = snd . Counter.top . _unoutcome
 
 -- | Get the final scores at the end of the game.
-finalScores :: Outcome -> [(PlayerId, Score)]
+finalScores :: Outcome -> [(PlayerId, Int)]
 finalScores = Counter.toList . _unoutcome
 
 
