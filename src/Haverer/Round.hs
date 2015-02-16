@@ -8,6 +8,7 @@ module Haverer.Round ( BadAction
                      , getActivePlayers
                      , getPlayer
                      , getPlayers
+                     , getWinners
                      , newRound
                      , nextPlayer
                      , playTurn

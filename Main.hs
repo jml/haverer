@@ -1,10 +1,12 @@
 import Prelude hiding (round)
 
+import Data.List (intercalate)
 import Data.Maybe (fromJust)
 import Text.Read
 
 import Haverer.Action
 import Haverer.Deck
+import qualified Haverer.Game as Game
 import Haverer.Player
 import Haverer.Prompt
 import Haverer.Round
@@ -53,6 +55,8 @@ pickGuess players = do
 
 -- XXX: Exclude self-targeting when it's not legal
 
+-- FIXME: Currently, if you have a "busting" hand with the minister, you still
+-- have to select a card to play before you bust out.
 
 main :: IO ()
 main = do
@@ -61,12 +65,34 @@ main = do
         Just set -> return set
         Nothing -> fail $ "Couldn't make set for " ++ (show result) ++ " players"
 
+  let game = Game.newGame players
+  putStrLn $ "GAME BEGIN"
+  outcome <- playGame game
+  putStrLn $ "GAME OVER"
+  case Game.winners outcome of
+   (x:[]) -> putStrLn $ "The winner is: " ++ toText x ++ "!"
+   xs -> putStrLn $ "The winners are: " ++ intercalate ", " (map toText xs) ++ "!"
+  putStrLn $ formatScores $ Game.finalScores outcome
+
+
+playGame :: Game.Game -> IO Game.Outcome
+playGame game = do
   -- FIXME: Loop these until the *game* is over
-  d <- newDeck
-  let r = newRound d players
+  putStrLn $ formatScores $ Game.scores game
+  r <- Game.newRound game
   putStrLn "ROUND BEGIN"
-  outcome <- playRound players r
+  outcome <- playRound (Game.players game) r
   roundOver outcome
+  case Game.playersWon game (getWinners outcome) of
+   Left o -> return o
+   Right game' -> playGame game'
+
+
+formatScores :: [(PlayerId, Game.Score)] -> String
+formatScores scores =
+  underline '-' "Scores" ++ "\n" ++
+  unlines (map formatScore scores)
+  where formatScore (pid, score) = toText pid ++ ": " ++ toText score
 
 
 playRound :: PlayerSet -> Round -> IO Victory
@@ -80,7 +106,10 @@ playRound players r = do
 
 
 roundOver :: Victory -> IO ()
-roundOver = putStrLn . toText
+roundOver v = do
+  putStrLn $ "ROUND OVER"
+  putStrLn $ toText v
+  putStrLn ""
 
 
 getPlay :: PlayerSet -> Round -> (Card, Card) -> IO (Round, Event)
