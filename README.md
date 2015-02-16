@@ -27,7 +27,7 @@ That last command, `cabal run`, will run a command-line version of the game.
 ## License
 
 This code is copyright Jonathan M. Lange, 2014-2015, and is made available
-under the Apache license.
+under the Apache License, version 2.0. See LICENSE for details.
 
 ## Roadmap
 
