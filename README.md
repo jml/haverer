@@ -31,6 +31,7 @@ under the Apache license.
 
 ## Roadmap
 
+0. Procrastinate endlessly learning new Haskell tricks
 1. Wrap this whole thing in an API server
 2. Make that server available to the public
 3. Put a nice-ish web frontend in front
