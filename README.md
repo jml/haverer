@@ -39,3 +39,25 @@ under the Apache license.
 
 Please file issues on the
 [Github issue tracker](https://github.com/jml/haverer/issues)
+
+## Thanks
+
+Thanks to the following people, who have helped with advice, kindness, or by patiently
+smiling and nodding while I've rambled on about this project:
+
+* metagnome
+* RAOF
+* idnar
+* pjdelport
+* tomprince
+* radix
+* teh
+* simpson
+* joliette
+
+Any infelicities are my own.
+
+If you are one of these people and would like to be referred to in another way
+(perhaps you'd like me to link to your Github page?), please contact me. You
+know how.
+
