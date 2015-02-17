@@ -32,8 +32,7 @@ import Haverer.Deck (baseCards, Card(..), Complete, Deck, makeDeck)
 import Haverer.Player (getHand, getDiscards, isProtected, makePlayerSet, PlayerId, PlayerSet)
 import Haverer.Prompt (toText)
 import Haverer.Round (
-  BadAction
-  , Round
+  Round
   , Event(Played, BustedOut)
   , Result(NothingHappened)
   , currentPlayer
@@ -52,9 +51,12 @@ import Haverer.ValidMoves (attacksOnProtectedPlayers, getValidMoves)
 
 
 instance Arbitrary (Deck Complete) where
+
+  -- | An arbitrary complete deck is a shuffled set of cards.
   arbitrary = fmap (fromJust . makeDeck) (shuffled baseCards)
 
 
+-- | Take a list and generate a shuffled version of it.
 shuffled ::[a] -> Gen [a]
 shuffled xs = do
   rs <- randomOrdering (length xs - 1)
@@ -70,12 +72,17 @@ shuffled xs = do
 
 
 instance Arbitrary PlayerSet where
+  -- | Start the game with a random number of players.
   arbitrary = fmap (fromJust . makePlayerSet) (elements [2, 3, 4])
 
 instance Arbitrary Round where
+  -- | A fresh, unplayed round with an arbitrary number of players and a
+  -- shuffled deck.
   arbitrary = newRound <$> arbitrary <*> arbitrary
 
 
+-- | Given a Round, generate a valid move. If there are no valid moves (i.e.
+-- the Round is over), return Nothing.
 randomCardPlay :: Round -> Gen (Maybe (Card, Play))
 randomCardPlay round =
   case getValidMoves round of
@@ -83,19 +90,19 @@ randomCardPlay round =
    xs -> elements (fmap Just xs)
 
 
-applyPlay :: Round -> Maybe (Card, Play) -> Either BadAction Round
-applyPlay r Nothing = return r
-applyPlay r (Just (card, play)) = fst <$> playTurn r card play
-
-fromRight :: Show a => Either a b -> b
-fromRight (Right b) = b
-fromRight (Left a) = error $ "unexpected Left " ++ show a
-
-
+-- | Given a Round, generate a Round that's randomly had a move applied, i.e.
+-- a possible next Round. If there are no valid moves, then return the same
+-- Round.
 randomNextMove :: Round -> Gen Round
-randomNextMove r = fmap (fromRight . applyPlay r) (randomCardPlay r)
+randomNextMove round = fmap (fromRight . applyPlay round) (randomCardPlay round)
+  where fromRight (Right b) = b
+        fromRight (Left a) = error $ "unexpected Left " ++ show a
+        applyPlay r Nothing = return r
+        applyPlay r (Just (card, play)) = fst <$> playTurn r card play
 
 
+-- | Kind of like iterate, but for a monadic function, such that the result of
+-- calling once is used as the argument for calling next.
 makeN' :: (Monad m) => Int -> (a -> m a) -> a -> m [a]
 makeN' n f x
   | n == 0 = return [x]
@@ -105,6 +112,7 @@ makeN' n f x
   | otherwise = return []
 
 
+-- | Generate a sequence of N rounds, starting from an initial round.
 manyMoves :: Int -> Gen [Round]
 manyMoves 0 = return []
 manyMoves n = do
@@ -113,15 +121,19 @@ manyMoves n = do
   return (initial:rest)
 
 
+-- | Generate a random number of consecutive rounds, starting from an initial round.
 randomRounds :: Gen [Round]
 randomRounds = do
   num <- choose (2, 14)
   manyMoves num
 
+
+-- | Generate a random round that might come up in the course of play.
 randomRound :: Gen Round
 randomRound = last <$> randomRounds
 
 
+-- | Generate a random, non-terminating round and a valid play for that round.
 roundAndPlay :: Gen (Round, Card, Play)
 roundAndPlay = do
   round <- randomRound `suchThat` (not . null . getValidMoves)
@@ -129,6 +141,7 @@ roundAndPlay = do
   return (round, card, play)
 
 
+-- | Generate an event that might come up in the course of play.
 inRoundEvent :: Gen Event
 inRoundEvent = do
   (round, card, play) <- roundAndPlay
@@ -136,11 +149,16 @@ inRoundEvent = do
    return event
 
 
-nextPlayerNeverCurrentPlayer :: Round -> Bool
-nextPlayerNeverCurrentPlayer round =
+-- | It is impossible for the next player to be the current player. That would
+-- mean there's only one person still playing, which would mean that the round
+-- is over.
+prop_nextPlayerNeverCurrentPlayer :: Round -> Bool
+prop_nextPlayerNeverCurrentPlayer round =
   currentPlayer round /= nextPlayer round || currentPlayer round == Nothing
 
 
+-- | The current player is *never* protected. At the start of your turn, any
+-- protection you had expires.
 prop_currentPlayerNeverProtected :: Round -> Bool
 prop_currentPlayerNeverProtected round =
   case currentPlayer round >>= getPlayer round >>= isProtected of
@@ -160,12 +178,18 @@ isSubListOf' (x:xs) ys =
   else False
 
 
+-- | Once inactive, you stay inactive. Takes a list of rounds that are
+-- presumed to be consecutive and shows that each one has a larger list of
+-- inactive players.
 prop_inactivePlayersRemainSo :: [Round] -> Bool
 prop_inactivePlayersRemainSo round =
   let actives = fmap getActivePlayers round in
   and [isSubListOf y x | (x, y) <- zip actives (tail actives)]
 
 
+-- | The given player is "the same" in two consecutive rounds. If the player is the
+-- current player in the second round, then we ignore their 'protected'
+-- status, since no player is ever protected on their first round.
 prop_playerSame :: PlayerId -> Round -> Round -> Bool
 prop_playerSame pid round round' =
   let player = getPlayer round pid
@@ -177,14 +201,18 @@ prop_playerSame pid round round' =
     _ -> player == player'
 
 
+-- | Attacking a player who is protected always leaves it in the exact same
+-- state when the turn is done. The only thing that might change is that it
+-- might now be the attacked player's turn.
 prop_protectedUnaffected :: Round -> Card -> Play -> Property
 prop_protectedUnaffected round card play =
   let target = getTarget play
       targetPlayer = getPlayer round =<< target
   in
-    -- XXX: That the version of the player in the new round is the same as the
-    -- old one unless it's now their turn, in which case everything is the
-    -- same *except* for protected status.
+   -- XXX: (minister-play) There's an edge case here where the attacker might
+   -- have a Wizard & a Minister. Arguably a bug in 'getValidMoves' that
+   -- extends from the arch-bug that you still need to call playTurn with an
+   -- attack even if you're busted.
    (Just True == (isProtected =<< targetPlayer) && not (busted round)) ==>
    let Right (round', Played _ result) = playTurn round card play in
     prop_playerSame (fromJust target) round round' &&
@@ -207,6 +235,10 @@ genAttacksOnProtectedPlayers = do
   return (round, card, play)
 
 
+-- FIXME: (minister-play) Shouldn't have to play to bust out with minister.
+
+-- | If you've got a busting hand, then no matter what you play, you're going
+-- to lose.
 prop_ministerBustsOut :: Round -> Card -> Play -> Property
 prop_ministerBustsOut round card play =
   let Just (pid, (dealt, hand)) = currentTurn round in
@@ -222,9 +254,9 @@ suite = testGroup "Haverer.Round" [
   [ testProperty "allCardsPresent" prop_allCardsPresent
   , testProperty "allCardsPresent after many moves" $
     forAll randomRounds $ all prop_allCardsPresent
-  , testProperty "next player is not current player" nextPlayerNeverCurrentPlayer
+  , testProperty "next player is not current player" prop_nextPlayerNeverCurrentPlayer
   , testProperty "next player is not current player after many moves" $
-    forAll randomRounds $ all nextPlayerNeverCurrentPlayer
+    forAll randomRounds $ all prop_nextPlayerNeverCurrentPlayer
   , testProperty "ring is active players" $ prop_ringIsActivePlayers
   , testProperty "ring is active players after move" $
     forAll randomRounds $ all prop_ringIsActivePlayers

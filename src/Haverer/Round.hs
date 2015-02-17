@@ -79,14 +79,11 @@ data Round = Round {
   _playOrder :: Ring PlayerId,
   _players :: Map.Map PlayerId Player,
   _state :: State,
-  -- XXX: Don't really *need* the following, but they've been useful for debugging.
-  _burn :: Card,
-  _log :: [Event],
-  _deck :: Deck Complete
+  _burn :: Card
 } deriving Show
 
 
-
+-- TODO: Move this and other ConsoleText implementations to a CLI module
 instance ConsoleText Round where
 
   toText round =
@@ -103,6 +100,7 @@ instance ConsoleText Round where
          Nothing -> " (eliminated)"
 
 
+-- XXX: Consider popping this out so that it's the constructor of the Round.
 data State = NotStarted | Turn Card | Playing | Over deriving Show
 
 newRound :: Deck Complete -> PlayerSet -> Round
@@ -116,9 +114,7 @@ newRound deck players =
         _playOrder = fromJust (newRing playerList),
         _players = Map.fromList $ zip playerList (map newPlayer cards),
         _state = NotStarted,
-        _burn = burn,
-        _log = [],
-        _deck = deck
+        _burn = burn
         }
    _ -> error ("Given a complete deck - " ++ show deck ++ "- that didn't have enough cards for players - " ++ show players)
   where playerList = toPlayers players
@@ -232,6 +228,7 @@ data BadAction = NoSuchPlayer PlayerId
                deriving Show
 
 
+-- XXX: Terrible name
 data Result =
   NothingHappened |
   Protected PlayerId |
@@ -242,6 +239,7 @@ data Result =
   deriving (Eq, Show)
 
 
+-- XXX: Terrible name
 data Event =
   BustedOut PlayerId Card Card |
   Played Action Result
@@ -300,8 +298,8 @@ instance ConsoleText Event where
     | loser == pid1 = toText pid1 ++ " played the Prince, eliminating themselves"
     | otherwise = error "BUG: " ++ show pid1 ++ " played Prince, but " ++ show loser ++ " eliminated."
 
-  -- XXX: There are two reasons they could lose here: 1. Discard Prince, 2.
-  -- Discard last card.
+  -- FIXME: There are two reasons they could lose here: 1. Discard Prince, 2.
+  -- Discard last card. Disambiguate between them.
   toText (Played (viewAction -> (pid1, Wizard, Attack pid2)) (Eliminated loser))
     | loser == pid2 =
         toText pid1 ++ " played Wizard on " ++ toText pid2 ++ " forcing them to discard "
@@ -317,6 +315,9 @@ instance ConsoleText Event where
 
   toText event = "UNKNOWN: " ++ show event
 
+
+-- XXX: applyAction: Not actually "applying" the action, more just figuring
+-- out what the result of performing the play would be. Rename.
 
 -- | Given the hand of the current player, the hand of the target (if there is
 -- one), and the action being played, return the change we need to make.
@@ -406,7 +407,7 @@ playTurn round chosen play = do
     else do
       -- An Action is a valid player, card, play combination.
       action <- case playToAction playerId chosen play of
-                 Left e -> Left $ InvalidPlay e -- XXX: Bad play. Translate to error type.
+                 Left e -> Left $ InvalidPlay e
                  Right a -> return a
       result <- applyAction round' action
       round'' <- applyResult round' result
@@ -419,9 +420,11 @@ bustOut round dealt hand pid = do
   return (nextTurn round', BustedOut pid dealt hand)
 
 
-data Victory =
-  SoleSurvivor PlayerId Card  -- |^ The given player is the only survivor.
-  | HighestCard Card [PlayerId] [(PlayerId, Card)]  -- |^  These players have the highest card.
+data Victory
+  -- | The given player is the only survivor.
+  = SoleSurvivor PlayerId Card
+  -- | These players have the highest card.
+  | HighestCard Card [PlayerId] [(PlayerId, Card)]
   deriving (Eq, Show)
 
 
