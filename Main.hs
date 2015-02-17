@@ -12,19 +12,20 @@
 -- See the License for the specific language governing permissions and
 -- limitations under the License.
 
+{-# OPTIONS_GHC -fno-warn-orphans #-}
+
 
 import Prelude hiding (round)
 
 import Data.List (intercalate)
-import Data.Maybe (fromJust)
 import Text.Read
 
-import Haverer.Action
-import Haverer.Deck
+import Haverer.Action (Play(..))
+import Haverer.Deck (Card(..))
+import qualified Haverer.Engine as E
 import qualified Haverer.Game as Game
-import Haverer.Player
-import Haverer.Prompt
-import Haverer.Round
+import Haverer.Player (PlayerId, PlayerSet, makePlayerSet, toPlayers)
+import Haverer.Prompt (repeatedlyPrompt, chooseItem, chooseItem', underline, toText)
 
 
 pickNumPlayers :: IO Int
@@ -80,29 +81,7 @@ main = do
         Just set -> return set
         Nothing -> fail $ "Couldn't make set for " ++ (show result) ++ " players"
 
-  let game = Game.newGame players
-  putStrLn $ underline '=' "GAME BEGIN"
-  putStrLn ""
-  outcome <- playGame game
-  putStrLn $ "GAME OVER"
-  case Game.winners outcome of
-   (x:[]) -> putStrLn $ "The winner is: " ++ toText x ++ "!"
-   xs -> putStrLn $ "The winners are: " ++ intercalate ", " (map toText xs) ++ "!"
-  putStrLn $ formatScores $ Game.finalScores outcome
-
-
-playGame :: Game.Game -> IO Game.Outcome
-playGame game = do
-  -- FIXME: Loop these until the *game* is over
-  putStrLn $ formatScores $ Game.scores game
-  r <- Game.newRound game
-  putStrLn $ underline '=' ("ROUND #" ++ show (Game.roundsPlayed game + 1) ++ " BEGIN")
-  putStrLn ""
-  outcome <- playRound (Game.players game) r
-  roundOver outcome
-  case Game.playersWon game (getWinners outcome) of
-   Left o -> return o
-   Right game' -> playGame game'
+  E.playGame players >> return ()
 
 
 formatScores :: [(PlayerId, Int)] -> String
@@ -112,45 +91,39 @@ formatScores scores =
   where formatScore (pid, score) = toText pid ++ ": " ++ toText score
 
 
-playRound :: PlayerSet -> Round -> IO Victory
-playRound players r = do
-  putStrLn $ toText r
-  result <- playHand players r
-  case result of
-   Just r' -> do
-     playRound players r'
-   Nothing -> return $ fromJust $ victory r
 
+instance E.MonadEngine IO where
 
-roundOver :: Victory -> IO ()
-roundOver v = do
-  putStrLn $ "ROUND OVER"
-  putStrLn $ toText v
-  putStrLn ""
+  badPlay e = putStrLn $ "ERROR: " ++ (show e)
 
+  choosePlay players _ dealt hand = do
+      card <- pickCardToPlay (dealt, hand)
+      putStrLn $ "You chose: " ++ show card
+      play <- pickPlay card players
+      return (card, play)
 
-getPlay :: PlayerSet -> Round -> (Card, Card) -> IO (Round, Event)
-getPlay players round hand = do
-  card <- pickCardToPlay hand
-  putStrLn $ "You chose: " ++ show card
+  handStarted = putStrLn . toText
 
-  play <- pickPlay card players
-
-  case playTurn round card play of
-   Left e -> do
-     putStrLn $ "ERROR: " ++ (show e)
-     getPlay players round hand
-   Right a -> return a
-
-
-playHand :: PlayerSet -> Round -> IO (Maybe Round)
-playHand players r =
-  case currentTurn r of
-   Nothing -> return Nothing
-   Just (player, hand) -> do
-     putStrLn $ underline '-' $ toText player
-
-     (round', event) <- getPlay players r hand
-
+  handOver event = do
      putStrLn $ "\n" ++ (toText event) ++ "\n"
-     return $ Just round'
+
+  gameStarted _ = do
+    putStrLn $ underline '=' "GAME BEGIN"
+    putStrLn ""
+
+  gameOver outcome = do
+    putStrLn $ "GAME OVER"
+    case Game.winners outcome of
+     (x:[]) -> putStrLn $ "The winner is: " ++ toText x ++ "!"
+     xs -> putStrLn $ "The winners are: " ++ intercalate ", " (map toText xs) ++ "!"
+    putStrLn $ formatScores $ Game.finalScores outcome
+
+  roundStarted game _ = do
+    putStrLn $ formatScores $ Game.scores game
+    putStrLn $ underline '=' ("ROUND #" ++ show (Game.roundsPlayed game + 1) ++ " BEGIN")
+    putStrLn ""
+
+  roundOver v = do
+    putStrLn $ "ROUND OVER"
+    putStrLn $ toText v
+    putStrLn ""
