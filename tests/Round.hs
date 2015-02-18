@@ -33,7 +33,7 @@ import Haverer.Player (getHand, getDiscards, isProtected, makePlayerSet, PlayerI
 import Haverer.Prompt (toText)
 import Haverer.Round (
   Round
-  , Event(Played, BustedOut)
+  , Event(..)
   , Result(NothingHappened)
   , currentPlayer
   , currentTurn
@@ -81,26 +81,37 @@ instance Arbitrary Round where
   arbitrary = newRound <$> arbitrary <*> arbitrary
 
 
--- | Given a Round, generate a valid move. If there are no valid moves (i.e.
--- the Round is over, or the current player has busted), return Nothing.
-randomCardPlay :: Round -> Gen (Maybe (Card, Play))
-randomCardPlay round =
-  case getValidMoves round of
-   [] -> return Nothing
-   xs -> elements (fmap Just xs)
+
+-- | For a Round and a known-good Card and Play, play the cards and return the
+-- round and event. If the hand busts out, Card and Play are ignored.
+playTurn' :: Round -> Card -> Play -> (Round, Event)
+playTurn' round card play =
+  case playTurn round of
+   Left (round', event) -> (round', event)
+   Right handlePlay ->
+     case handlePlay card play of
+      Left err -> error $ "Should have generated valid play: " ++ show (err, round, card, play)
+      Right (round', event) -> (round', event)
+
+
+playRandomTurn :: Round -> Gen (Round, Event)
+playRandomTurn round = do
+  move <- randomCardPlay round
+  case move of
+   Nothing -> return (round, RoundOver)
+   Just (card, play) -> return $ playTurn' round card play
+  where
+    randomCardPlay round' =
+      case getValidMoves round' of
+       [] -> return Nothing
+       xs -> elements (fmap Just xs)
 
 
 -- | Given a Round, generate a Round that's randomly had a move applied, i.e.
 -- a possible next Round. If there are no valid moves, then return the same
 -- Round.
 randomNextMove :: Round -> Gen Round
--- FIXME: This means we'll never play after someone busts out. Make a general
--- thing like (playTurn :: Round -> Gen (Round, Event)) and then use that
--- everywhere.
-randomNextMove round = (applyPlay round) <$> (randomCardPlay round)
-  where applyPlay r Nothing = r
-        applyPlay r (Just (card, play)) = fst $ playTurn' r card play
-
+randomNextMove round = fst <$> playRandomTurn round
 
 
 -- | Kind of like iterate, but for a monadic function, such that the result of
@@ -141,18 +152,6 @@ roundAndPlay = do
   round <- randomRound `suchThat` (not . null . getValidMoves)
   (card, play) <- elements $ getValidMoves round
   return (round, card, play)
-
-
--- | For a Round and a known-good Card and Play, play the cards and return the
--- round and event. If the hand busts out, Card and Play are ignored.
-playTurn' :: Round -> Card -> Play -> (Round, Event)
-playTurn' round card play =
-  case playTurn round of
-   Left (round', event) -> (round', event)
-   Right handlePlay ->
-     case handlePlay card play of
-      Left err -> error $ "Should have generated valid play: " ++ show (err, round, card, play)
-      Right (round', event) -> (round', event)
 
 
 -- | Generate an event that might come up in the course of play.
