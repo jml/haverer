@@ -82,7 +82,7 @@ instance Arbitrary Round where
 
 
 -- | Given a Round, generate a valid move. If there are no valid moves (i.e.
--- the Round is over), return Nothing.
+-- the Round is over, or the current player has busted), return Nothing.
 randomCardPlay :: Round -> Gen (Maybe (Card, Play))
 randomCardPlay round =
   case getValidMoves round of
@@ -94,9 +94,13 @@ randomCardPlay round =
 -- a possible next Round. If there are no valid moves, then return the same
 -- Round.
 randomNextMove :: Round -> Gen Round
+-- FIXME: This means we'll never play after someone busts out. Make a general
+-- thing like (playTurn :: Round -> Gen (Round, Event)) and then use that
+-- everywhere.
 randomNextMove round = (applyPlay round) <$> (randomCardPlay round)
   where applyPlay r Nothing = r
         applyPlay r (Just (card, play)) = fst $ playTurn' r card play
+
 
 
 -- | Kind of like iterate, but for a monadic function, such that the result of
@@ -218,15 +222,10 @@ prop_protectedUnaffected round card play =
   let target = getTarget play
       targetPlayer = getPlayer round =<< target
   in
-   -- XXX: (minister-play) There's an edge case here where the attacker might
-   -- have a Wizard & a Minister. Arguably a bug in 'getValidMoves' that
-   -- extends from the arch-bug that you still need to call playTurn with an
-   -- attack even if you're busted.
-   (Just True == (isProtected =<< targetPlayer) && not (busted round)) ==>
+   Just True == (isProtected =<< targetPlayer) ==>
    let (round', Played _ result) = playTurn' round card play in
     prop_playerSame (fromJust target) round round' &&
     (result == NothingHappened)
-  where busted r = let Just (_, (c1, c2)) = currentTurn r in bustingHand c1 c2
 
 
 roundIsBusted :: Round -> Bool
