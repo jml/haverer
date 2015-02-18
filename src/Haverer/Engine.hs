@@ -92,11 +92,13 @@ playHand players r =
 
 
 getPlay :: MonadEngine m => PlayerSet -> Round.Round -> PlayerId -> Card -> Card -> m (Round.Round, Round.Event)
-getPlay players round player dealt hand = do
-  (card, play) <- choosePlay players player dealt hand
-
-  case Round.playTurn round card play of
-   Left e -> do
-     badPlay e
-     getPlay players round player dealt hand
-   Right a -> return a
+getPlay players round player dealt hand =
+  case Round.playTurn round of
+   Left (round', event) -> return (round', event)
+   Right handlePlay -> do
+     (card, play) <- choosePlay players player dealt hand
+     case handlePlay card play of
+      Left err -> do
+        badPlay err
+        getPlay players round player dealt hand
+      Right (round', event) -> return (round', event)

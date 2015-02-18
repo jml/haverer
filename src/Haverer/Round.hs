@@ -224,7 +224,6 @@ data BadAction = NoSuchPlayer PlayerId
                | InactivePlayer PlayerId
                | InvalidPlay BadPlay
                | WrongCard Card (Card, Card)
-               | RoundOver
                deriving Show
 
 
@@ -242,7 +241,8 @@ data Result =
 -- XXX: Terrible name
 data Event =
   BustedOut PlayerId Card Card |
-  Played Action Result
+  Played Action Result |
+  RoundOver
   deriving (Eq, Show)
 
 
@@ -394,18 +394,25 @@ maybeToEither e Nothing = Left e
 maybeToEither _ (Just a) = Right a
 
 
-playTurn :: Round -> Card -> Play -> Either BadAction (Round, Event)
-playTurn round chosen play = do
-  (playerId, (dealt, hand)) <- maybeToEither RoundOver (currentTurn round)
-  player <- getActivePlayer round playerId
+playTurn :: Round -> Either (Round, Event) (Card -> Play -> Either BadAction (Round, Event))
+playTurn round = do
+  (playerId, (dealt, hand)) <- case (currentTurn round) of
+                                Nothing -> Left $ (round, RoundOver)
+                                Just r -> return r
+  player <- case getActivePlayer round playerId of
+             Left e -> error $ "Current player is not active: " ++ (show e)
+             Right r -> return r
   -- The card the player chose is now put in front of them, and the card they
   -- didn't chose is now their hand.
-  player' <- maybeToEither (WrongCard chosen (dealt, hand)) (playCard player dealt chosen)
-  let round' = replacePlayer (round { _state = Playing }) playerId player'
   if bustingHand dealt hand
-    then bustOut round' dealt hand playerId
-    else do
+    then Left $ bustOut playerId dealt hand
+    else Right $ handlePlay playerId player dealt hand
+
+  where
+    handlePlay playerId player dealt hand chosen play = do
       -- An Action is a valid player, card, play combination.
+      player' <- maybeToEither (WrongCard chosen (dealt, hand)) (playCard player dealt chosen)
+      let round' = replacePlayer (round { _state = Playing }) playerId player'
       action <- case playToAction playerId chosen play of
                  Left e -> Left $ InvalidPlay e
                  Right a -> return a
@@ -413,11 +420,10 @@ playTurn round chosen play = do
       round'' <- applyResult round' result
       return $ (nextTurn round'', Played action result)
 
-
-bustOut :: Round -> Card -> Card -> PlayerId -> Either BadAction (Round, Event)
-bustOut round dealt hand pid = do
-  round' <- adjustPlayer round pid eliminate
-  return (nextTurn round', BustedOut pid dealt hand)
+    bustOut pid dealt hand =
+      case adjustPlayer round pid eliminate of
+       Left e -> error $ "Could not bust out player: " ++ (show e)
+       Right round' -> (nextTurn round', BustedOut pid dealt hand)
 
 
 data Victory
