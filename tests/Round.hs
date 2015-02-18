@@ -20,10 +20,9 @@ module Round where
 import Prelude hiding (round)
 
 import Control.Applicative ((<*>), (<$>))
-import Data.List (delete, isPrefixOf, sort)
+import Data.List (isPrefixOf)
 import Data.Maybe (fromJust)
 
-import System.Random.Shuffle (shuffle)
 import Test.Tasty
 import Test.Tasty.QuickCheck
 
@@ -49,37 +48,23 @@ import Haverer.Round (
   )
 import Haverer.ValidMoves (attacksOnProtectedPlayers, getValidMoves)
 
+import Utils (shuffled, iterateM', isSubListOf)
+
 
 instance Arbitrary (Deck Complete) where
-
   -- | An arbitrary complete deck is a shuffled set of cards.
   arbitrary = fmap (fromJust . makeDeck) (shuffled baseCards)
-
-
--- | Take a list and generate a shuffled version of it.
-shuffled ::[a] -> Gen [a]
-shuffled xs = do
-  rs <- randomOrdering (length xs - 1)
-  return $ shuffle xs rs
-  where
-    -- a sequence (r1,...r[n-1]) of numbers such that r[i] is an independent
-    -- sample from a uniform random distribution [0..n-i]
-    randomOrdering 0 = return []
-    randomOrdering n =
-      do y <- choose (0, n)
-         ys <- randomOrdering (n - 1)
-         return (y:ys)
 
 
 instance Arbitrary PlayerSet where
   -- | Start the game with a random number of players.
   arbitrary = fmap (fromJust . makePlayerSet) (elements [2, 3, 4])
 
+
 instance Arbitrary Round where
   -- | A fresh, unplayed round with an arbitrary number of players and a
   -- shuffled deck.
   arbitrary = newRound <$> arbitrary <*> arbitrary
-
 
 
 -- | For a Round and a known-good Card and Play, play the cards and return the
@@ -114,23 +99,12 @@ randomNextMove :: Round -> Gen Round
 randomNextMove round = fst <$> playRandomTurn round
 
 
--- | Kind of like iterate, but for a monadic function, such that the result of
--- calling once is used as the argument for calling next.
-makeN' :: (Monad m) => Int -> (a -> m a) -> a -> m [a]
-makeN' n f x
-  | n == 0 = return [x]
-  | n > 0  = do y <- f x
-                ys <- makeN' (n - 1) f y
-                return (y:ys)
-  | otherwise = return []
-
-
 -- | Generate a sequence of N rounds, starting from an initial round.
 manyMoves :: Int -> Gen [Round]
 manyMoves 0 = return []
 manyMoves n = do
   initial <- arbitrary
-  rest <- makeN' (n - 2) randomNextMove initial
+  rest <- iterateM' (n - 2) randomNextMove initial
   return (initial:rest)
 
 
@@ -176,18 +150,6 @@ prop_currentPlayerNeverProtected round =
   case currentPlayer round >>= getPlayer round >>= isProtected of
    Nothing -> True  -- round is over
    Just protected -> not protected
-
-
-isSubListOf :: (Eq a, Ord a) => [a] -> [a] -> Bool
-isSubListOf xs ys = isSubListOf' (sort xs) (sort ys)
-
-isSubListOf' :: Eq a => [a] -> [a] -> Bool
-isSubListOf' (_:_) []  = False
-isSubListOf' [] _      = True
-isSubListOf' (x:xs) ys =
-  if x `elem` ys
-  then isSubListOf' xs (delete x ys)
-  else False
 
 
 -- | Once inactive, you stay inactive. Takes a list of rounds that are
