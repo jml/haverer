@@ -26,15 +26,29 @@ import Haverer.Player (PlayerId, PlayerSet)
 class Monad m => MonadEngine m where
 
   badPlay :: Round.BadAction -> m ()
+  badPlay _ = return ()
+
   -- XXX: We're passing PlayerSet around everywhere just so we can have it
   -- here.
   choosePlay :: PlayerSet -> PlayerId -> Card -> Card -> m (Card, Play)
+
   gameStarted :: Game.Game -> m ()
+  gameStarted _ = return ()
+
   gameOver :: Game.Outcome -> m ()
+  gameOver _ = return ()
+
   roundStarted :: Game.Game -> Round.Round -> m ()
+  roundStarted _ _ = return ()
+
   roundOver :: Round.Victory -> m ()
+  roundOver _ = return ()
+
   handStarted :: Round.Round -> m ()
+  handStarted _ = return ()
+
   handOver :: Round.Event -> m ()
+  handOver _ = return ()
 
 
 playGame :: (Functor m, MonadRandom m, MonadEngine m) => PlayerSet -> m Game.Outcome
@@ -78,11 +92,13 @@ playHand players r =
 
 
 getPlay :: MonadEngine m => PlayerSet -> Round.Round -> PlayerId -> Card -> Card -> m (Round.Round, Round.Event)
-getPlay players round player dealt hand = do
-  (card, play) <- choosePlay players player dealt hand
-
-  case Round.playTurn round card play of
-   Left e -> do
-     badPlay e
-     getPlay players round player dealt hand
-   Right a -> return a
+getPlay players round player dealt hand =
+  case Round.playTurn round of
+   Left (round', event) -> return (round', event)
+   Right handlePlay -> do
+     (card, play) <- choosePlay players player dealt hand
+     case handlePlay card play of
+      Left err -> do
+        badPlay err
+        getPlay players round player dealt hand
+      Right (round', event) -> return (round', event)

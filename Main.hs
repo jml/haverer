@@ -71,9 +71,6 @@ pickGuess players = do
 
 -- XXX: Exclude self-targeting when it's not legal
 
--- FIXME: Currently, if you have a "busting" hand with the minister, you still
--- have to select a card to play before you bust out.
-
 main :: IO ()
 main = do
   result <- pickNumPlayers

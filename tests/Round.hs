@@ -33,7 +33,7 @@ import Haverer.Player (getHand, getDiscards, isProtected, makePlayerSet, PlayerI
 import Haverer.Prompt (toText)
 import Haverer.Round (
   Round
-  , Event(Played, BustedOut)
+  , Event(..)
   , Result(NothingHappened)
   , currentPlayer
   , currentTurn
@@ -81,24 +81,37 @@ instance Arbitrary Round where
   arbitrary = newRound <$> arbitrary <*> arbitrary
 
 
--- | Given a Round, generate a valid move. If there are no valid moves (i.e.
--- the Round is over), return Nothing.
-randomCardPlay :: Round -> Gen (Maybe (Card, Play))
-randomCardPlay round =
-  case getValidMoves round of
-   [] -> return Nothing
-   xs -> elements (fmap Just xs)
+
+-- | For a Round and a known-good Card and Play, play the cards and return the
+-- round and event. If the hand busts out, Card and Play are ignored.
+playTurn' :: Round -> Card -> Play -> (Round, Event)
+playTurn' round card play =
+  case playTurn round of
+   Left (round', event) -> (round', event)
+   Right handlePlay ->
+     case handlePlay card play of
+      Left err -> error $ "Should have generated valid play: " ++ show (err, round, card, play)
+      Right (round', event) -> (round', event)
+
+
+playRandomTurn :: Round -> Gen (Round, Event)
+playRandomTurn round = do
+  move <- randomCardPlay round
+  case move of
+   Nothing -> return (round, RoundOver)
+   Just (card, play) -> return $ playTurn' round card play
+  where
+    randomCardPlay round' =
+      case getValidMoves round' of
+       [] -> return Nothing
+       xs -> elements (fmap Just xs)
 
 
 -- | Given a Round, generate a Round that's randomly had a move applied, i.e.
 -- a possible next Round. If there are no valid moves, then return the same
 -- Round.
 randomNextMove :: Round -> Gen Round
-randomNextMove round = fmap (fromRight . applyPlay round) (randomCardPlay round)
-  where fromRight (Right b) = b
-        fromRight (Left a) = error $ "unexpected Left " ++ show a
-        applyPlay r Nothing = return r
-        applyPlay r (Just (card, play)) = fst <$> playTurn r card play
+randomNextMove round = fst <$> playRandomTurn round
 
 
 -- | Kind of like iterate, but for a monadic function, such that the result of
@@ -145,8 +158,7 @@ roundAndPlay = do
 inRoundEvent :: Gen Event
 inRoundEvent = do
   (round, card, play) <- roundAndPlay
-  let Right (_, event) = playTurn round card play in
-   return event
+  return $ snd $ playTurn' round card play
 
 
 -- | It is impossible for the next player to be the current player. That would
@@ -209,15 +221,10 @@ prop_protectedUnaffected round card play =
   let target = getTarget play
       targetPlayer = getPlayer round =<< target
   in
-   -- XXX: (minister-play) There's an edge case here where the attacker might
-   -- have a Wizard & a Minister. Arguably a bug in 'getValidMoves' that
-   -- extends from the arch-bug that you still need to call playTurn with an
-   -- attack even if you're busted.
-   (Just True == (isProtected =<< targetPlayer) && not (busted round)) ==>
-   let Right (round', Played _ result) = playTurn round card play in
+   Just True == (isProtected =<< targetPlayer) ==>
+   let (round', Played _ result) = playTurn' round card play in
     prop_playerSame (fromJust target) round round' &&
     (result == NothingHappened)
-  where busted r = let Just (_, (c1, c2)) = currentTurn r in bustingHand c1 c2
 
 
 roundIsBusted :: Round -> Bool
@@ -235,15 +242,13 @@ genAttacksOnProtectedPlayers = do
   return (round, card, play)
 
 
--- FIXME: (minister-play) Shouldn't have to play to bust out with minister.
-
 -- | If you've got a busting hand, then no matter what you play, you're going
 -- to lose.
-prop_ministerBustsOut :: Round -> Card -> Play -> Property
-prop_ministerBustsOut round card play =
+prop_ministerBustsOut :: Round -> Property
+prop_ministerBustsOut round =
   let Just (pid, (dealt, hand)) = currentTurn round in
   bustingHand dealt hand ==>
-  let Right (round', event) = playTurn round card play in
+  let Left (round', event) = playTurn round in
    not (pid `elem` getActivePlayers round') &&
    event == BustedOut pid dealt hand
 
@@ -271,8 +276,7 @@ suite = testGroup "Haverer.Round" [
   , testProperty "attacks on protected never succeed" $
     forAll genAttacksOnProtectedPlayers $ \(r, c, p) -> prop_protectedUnaffected r c p
   , testProperty "minister + high card deactivates player" $
-    forAll (randomRound `suchThat` roundIsBusted) $
-    \round -> forAll (elements $ getValidMoves round) $ \(c, p) -> prop_ministerBustsOut round c p
+    forAll (randomRound `suchThat` roundIsBusted) $ prop_ministerBustsOut
   , testProperty "event toText coverage" $
     forAll inRoundEvent $ not . isPrefixOf "UNKNOWN" . toText
   ]
