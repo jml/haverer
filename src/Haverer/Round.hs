@@ -54,6 +54,7 @@ import Haverer.Action (
 import Haverer.Deck (Card(..), Complete, Deck, deal, Incomplete, pop)
 import qualified Haverer.Deck as Deck
 import Haverer.Player (
+  bust,
   discardAndDraw,
   eliminate,
   getDiscards,
@@ -218,6 +219,7 @@ nextTurn r =
              r2 { _state = Turn card,
                   _playOrder = newPlayOrder }) pid player
    _ -> r { _state = Over }
+
 
 
 data BadAction = NoSuchPlayer PlayerId
@@ -421,9 +423,9 @@ playTurn round = do
       return $ (nextTurn round'', Played action result)
 
     bustOut pid dealt hand =
-      case adjustPlayer round pid eliminate of
+      case adjustPlayer round pid (flip bust dealt) of
        Left e -> error $ "Could not bust out player: " ++ (show e)
-       Right round' -> (nextTurn round', BustedOut pid dealt hand)
+       Right round' -> (nextTurn (round' { _state = Playing }), BustedOut pid dealt hand)
 
 
 data Victory

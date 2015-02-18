@@ -13,6 +13,7 @@
 -- limitations under the License.
 
 module Haverer.Player (
+  bust,
   Error,
   discardAndDraw,
   eliminate,
@@ -138,6 +139,11 @@ playCard (Active hand protected discards) dealt chosen =
   else if dealt == chosen
        then Just $ Active hand protected (dealt:discards)
        else Nothing
+
+
+bust :: Player -> Card -> Maybe Player
+bust (Inactive _) _ = Nothing
+bust (Active hand _ discards) dealt = Just $ Inactive (hand:dealt:discards)
 
 
 getDiscards :: Player -> [Card]
