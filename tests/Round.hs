@@ -27,6 +27,7 @@ import Test.Tasty
 import Test.Tasty.QuickCheck
 
 import Haverer.Action (Play(..), bustingHand, getTarget)
+import Haverer.CommandLine ()
 import Haverer.Deck (baseCards, Card(..), Complete, Deck, makeDeck)
 import Haverer.Player (getHand, getDiscards, isProtected, makePlayerSet, PlayerId, PlayerSet)
 import Haverer.Prompt (toText)

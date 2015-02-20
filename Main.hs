@@ -21,6 +21,7 @@ import Data.List (intercalate)
 import Text.Read
 
 import Haverer.Action (Play(..))
+import Haverer.CommandLine ()
 import Haverer.Deck (Card(..))
 import qualified Haverer.Engine as E
 import qualified Haverer.Game as Game

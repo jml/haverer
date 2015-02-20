@@ -33,6 +33,7 @@ library
   hs-source-dirs: src
   build-depends:       base >=4.7 && <4.8, containers, random-shuffle, MonadRandom, pretty-show
   exposed-modules: Haverer.Action
+                 , Haverer.CommandLine
                  , Haverer.Counter
                  , Haverer.Deck
                  , Haverer.Engine
