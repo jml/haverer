@@ -88,9 +88,9 @@ data Round = Round {
 instance ConsoleText Round where
 
   toText round =
-    "Cards remaining: " ++ (show . length . Deck.toList . _stack $ round) ++ ".\n\n" ++
+    "Cards remaining: " ++ (show $ remainingCards round) ++ ".\n\n" ++
     underline '-' "All discards" ++ "\n" ++
-    Map.foldrWithKey (\k a b -> formatPlayer k a ++ "\n" ++ b) "" (_players round)
+    Map.foldrWithKey (\k a b -> formatPlayer k a ++ "\n" ++ b) "" (getPlayerMap round)
     where
       formatPlayer pid player =
         toText pid ++ ": " ++ intercalate ", " (map toText (getDiscards player)) ++ playerStatus player
@@ -104,6 +104,7 @@ instance ConsoleText Round where
 -- XXX: Consider popping this out so that it's the constructor of the Round.
 data State = NotStarted | Turn Card | Playing | Over deriving Show
 
+-- TODO: Rename newFoo to makeFoo
 newRound :: Deck Complete -> PlayerSet -> Round
 newRound deck players =
   nextTurn $ case deal deck (length playerList) of
@@ -121,8 +122,16 @@ newRound deck players =
   where playerList = toPlayers players
 
 
+remainingCards :: Round -> Int
+remainingCards = length . Deck.toList . _stack
+
+
 getPlayers :: Round -> [PlayerId]
 getPlayers = Map.keys . _players
+
+
+getPlayerMap :: Round -> Map.Map PlayerId Player
+getPlayerMap = _players
 
 
 getActivePlayers :: Round -> [PlayerId]
