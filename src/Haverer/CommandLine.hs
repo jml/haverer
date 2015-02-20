@@ -24,7 +24,7 @@ import qualified Data.Map as Map
 
 import Haverer.Action (Play(..), viewAction)
 import Haverer.Deck (Card(..))
-import Haverer.Player (getDiscards, isProtected)
+import Haverer.Player (PlayerId, getDiscards, isProtected)
 import Haverer.Round (
   Event(..),
   Result(..),
@@ -34,6 +34,14 @@ import Haverer.Round (
   remainingCards
   )
 import Haverer.Prompt (ConsoleText, toText, underline)
+
+
+instance ConsoleText Card where
+  toText = show
+
+
+instance ConsoleText PlayerId where
+  toText = show
 
 
 instance ConsoleText Round where

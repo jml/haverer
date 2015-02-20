@@ -35,14 +35,9 @@ module Haverer.Player (
 import Data.List (nub, sort)
 
 import Haverer.Deck (Card)
-import Haverer.Prompt (ConsoleText, toText)
 
 
 newtype PlayerId = PlayerId Int deriving (Eq, Ord, Show)
-
-instance ConsoleText PlayerId where
-  toText (PlayerId i) = "Player #" ++ show i
-
 
 players :: [PlayerId]
 players = map PlayerId [1..]
