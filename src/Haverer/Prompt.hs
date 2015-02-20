@@ -17,6 +17,9 @@
 
 module Haverer.Prompt where
 
+-- TODO: Move this, CommandLine, and Main to a completely separate build
+-- target in their own directory.
+
 import Data.List (intercalate)
 import Text.Read (readMaybe)
 import System.IO (hFlush, stdout)
