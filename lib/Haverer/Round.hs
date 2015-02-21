@@ -131,15 +131,11 @@ getActivePlayers = Ring.toList . view playOrder
 
 
 getPlayer :: Round -> PlayerId -> Maybe Player
-getPlayer round pid = Map.lookup pid (view players round)
+getPlayer round pid = (view (players . at pid) round)
 
 
 getActivePlayer :: Round -> PlayerId -> Either BadAction Player
 getActivePlayer round pid = fst <$> getActivePlayerHand round pid
-
-
-getPlayerHand :: Round -> PlayerId -> Maybe Card
-getPlayerHand r pid = getHand =<< getPlayer r pid
 
 
 getActivePlayerHand :: Round -> PlayerId -> Either BadAction (Player, Card)
@@ -170,7 +166,7 @@ currentPlayer rnd =
 currentHand :: Round -> Maybe (Card, Card)
 currentHand rnd = do
   pid <- currentPlayer rnd
-  hand <- getPlayerHand rnd pid
+  hand <- getHand =<< getPlayer rnd pid
   case view state rnd of
    Turn dealt -> return (dealt, hand)
    _ -> Nothing
@@ -411,7 +407,7 @@ replacePlayer round pid newP =
    Nothing -> dropPlayer pid
    Just _ -> round'
   where
-    round' = over players (Map.insert pid newP) round
+    round' = over players (\x -> set (at pid) (Just newP) x) round
     dropPlayer p =
       case dropItem1 (view playOrder round') p of
        Left _ -> set state Over round
