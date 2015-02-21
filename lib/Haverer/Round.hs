@@ -154,8 +154,8 @@ getActivePlayerHand round pid =
 
 drawCard :: Round -> (Round, Maybe Card)
 drawCard r =
-  let (stack', card) = pop (_stack r) in
-  (r { _stack = stack' }, card)
+  let (stack', card) = pop (view stack r) in
+  (set stack stack' r, card)
 
 
 currentPlayer :: Round -> Maybe PlayerId
@@ -197,29 +197,27 @@ nextPlayer rnd =
 
 
 nextTurn :: Round -> Round
-nextTurn r@(Round { _state = Over }) = r
+nextTurn round@(Round { _state = Over }) = round
 -- XXX: This is kind of crap. Either eliminate the duplication using some kind
 -- of composable operation, or just get rid of the NotStarted state, since we
 -- basically don't use it.
-nextTurn r@(Round { _state = NotStarted }) =
-  case drawCard r of
-   (r2, Just card) -> r2 { _state = Turn card }
-   _ -> error $ "Cannot draw a card in just started round: " ++ show r
+nextTurn round@(Round { _state = NotStarted }) =
+  case drawCard round of
+   (round', Just card) -> set state (Turn card) round'
+   _ -> error $ "Cannot draw a card in just started round: " ++ show round
 nextTurn (Round { _state = Turn _ } ) =
   error "Cannot advance to next turn while waiting for play."
-nextTurn r =
-  case (drawCard r, nextPlayer r) of
-   ((r2, Just card), Just pid) ->
-     case advance1 (view playOrder r) of
-      Left _ -> r { _state = Over }
+nextTurn round =
+  case (drawCard round, nextPlayer round) of
+   ((round', Just card), Just pid) ->
+     case advance1 (view playOrder round) of
+      Left _ -> set state Over round
       Right newPlayOrder ->
-        case getPlayer r pid >>= unprotect of
+        case getPlayer round pid >>= unprotect of
          Nothing -> error $ "Couldn't get current player as active: " ++ (show pid)
          Just player ->
-           replacePlayer (
-             r2 { _state = Turn card,
-                  _playOrder = newPlayOrder }) pid player
-   _ -> r { _state = Over }
+           replacePlayer (round' & state .~ Turn card & playOrder .~ newPlayOrder) pid player
+   _ -> set state Over round
 
 
 
@@ -355,7 +353,7 @@ playTurn round = do
     handlePlay playerId player dealt hand chosen play = do
       -- An Action is a valid player, card, play combination.
       player' <- maybeToEither (WrongCard chosen (dealt, hand)) (playCard player dealt chosen)
-      let round' = replacePlayer (round { _state = Playing }) playerId player'
+      let round' = replacePlayer (set state Playing round) playerId player'
       action <- case playToAction playerId chosen play of
                  Left e -> Left $ InvalidPlay e
                  Right a -> return a
@@ -366,7 +364,7 @@ playTurn round = do
     bustOut pid dealt hand =
       case adjustPlayer round pid (flip bust dealt) of
        Left e -> error $ "Could not bust out player: " ++ (show e)
-       Right round' -> (nextTurn (round' { _state = Playing }), BustedOut pid dealt hand)
+       Right round' -> (nextTurn (set state Playing round'), BustedOut pid dealt hand)
 
 
 data Victory
@@ -408,16 +406,16 @@ adjustPlayer rnd pid f =
 
 
 replacePlayer :: Round -> PlayerId -> Player -> Round
-replacePlayer rnd pid newP =
+replacePlayer round pid newP =
   case getHand newP of
    Nothing -> dropPlayer pid
-   Just _ -> newRnd
+   Just _ -> round'
   where
-    newRnd = rnd { _players = Map.insert pid newP (_players rnd) }
+    round' = over players (Map.insert pid newP) round
     dropPlayer p =
-      case dropItem1 (_playOrder newRnd) p of
-       Left _ -> rnd { _state = Over }
-       Right newOrder -> newRnd { _playOrder = newOrder }
+      case dropItem1 (view playOrder round') p of
+       Left _ -> set state Over round
+       Right newOrder -> set playOrder newOrder round'
 
 
 -- | Are all the cards in the Round?
