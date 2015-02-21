@@ -16,7 +16,7 @@ import Haverer.Deck (baseCards, Card(..), Complete, Deck, makeDeck)
 import Haverer.Player (makePlayerSet, PlayerSet)
 import Haverer.Round (
   Round
-  , Event(..)
+  , Result(..)
   , makeRound
   , playTurn
   )
@@ -42,7 +42,7 @@ instance Arbitrary Round where
 
 -- | For a Round and a known-good Card and Play, play the cards and return the
 -- round and event. If the hand busts out, Card and Play are ignored.
-playTurn' :: Round -> Card -> Play -> (Round, Event)
+playTurn' :: Round -> Card -> Play -> (Round, Result)
 playTurn' round card play =
   case playTurn round of
    Left (round', event) -> (round', event)
@@ -52,7 +52,7 @@ playTurn' round card play =
       Right (round', event) -> (round', event)
 
 
-playRandomTurn :: Round -> Gen (Round, Event)
+playRandomTurn :: Round -> Gen (Round, Result)
 playRandomTurn round = do
   move <- randomCardPlay round
   case move of
@@ -102,7 +102,7 @@ roundAndPlay = do
 
 
 -- | Generate an event that might come up in the course of play.
-inRoundEvent :: Gen Event
+inRoundEvent :: Gen Result
 inRoundEvent = do
   (round, card, play) <- roundAndPlay
   return $ snd $ playTurn' round card play

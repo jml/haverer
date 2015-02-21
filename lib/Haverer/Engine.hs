@@ -47,7 +47,7 @@ class Monad m => MonadEngine m where
   handStarted :: Round.Round -> m ()
   handStarted _ = return ()
 
-  handOver :: Round.Event -> m ()
+  handOver :: Round.Result -> m ()
   handOver _ = return ()
 
 
@@ -91,7 +91,7 @@ playHand players r =
      return $ Just round'
 
 
-getPlay :: MonadEngine m => PlayerSet -> Round.Round -> PlayerId -> Card -> Card -> m (Round.Round, Round.Event)
+getPlay :: MonadEngine m => PlayerSet -> Round.Round -> PlayerId -> Card -> Card -> m (Round.Round, Round.Result)
 getPlay players round player dealt hand =
   case Round.playTurn round of
    Left (round', event) -> return (round', event)

@@ -74,7 +74,7 @@ instance ConsoleText Round where
          Nothing -> " (eliminated)"
 
 
-instance ConsoleText Event where
+instance ConsoleText Result where
 
   -- FIXME: Don't have quite enough information here to disambiguate between
   -- Soldier attack failing due to wrong guess and Soldier attack failing due to

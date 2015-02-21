@@ -17,8 +17,8 @@
 module Haverer.Round ( BadAction
                      , currentPlayer
                      , currentTurn
-                     , Event(..)  -- XXX: Probably shouldn't be exporting this
-                     , Result(..)  -- XXX: Probably shouldn't be exporting this
+                     , Event(..)
+                     , Result(..)
                      , getActivePlayers
                      , getPlayer
                      , getPlayerMap
@@ -222,21 +222,31 @@ data BadAction = NoSuchPlayer PlayerId
                deriving Show
 
 
--- XXX: Terrible name
-data Result =
+-- | A change to the Round that comes as result of a player's actions.
+data Event =
+  -- | Nothing happened. What the player did had no effect.
   NoChange |
+  -- | The player is now protected.
   Protected PlayerId |
+  -- | The first player has been forced to swap hands with the second.
   SwappedHands PlayerId PlayerId |
+  -- | The player has been eliminated from the round.
   Eliminated PlayerId |
+  -- | The player has been forced to discard their hand.
   ForcedDiscard PlayerId |
+  -- | The second player has been forced to show their hand to the first.
   ForcedReveal PlayerId PlayerId Card
   deriving (Eq, Show)
 
 
--- XXX: Terrible name
-data Event =
+-- | The result of a turn.
+data Result =
+  -- | The player whose turn it was "busted out", they held the Minister and
+  -- another high card, and thus didn't get to play.
   BustedOut PlayerId Card Card |
-  Played Action Result |
+  -- | The player performed an Action resulting in Event.
+  Played Action Event |
+  -- | The round was already over.
   RoundOver
   deriving (Eq, Show)
 
@@ -246,7 +256,7 @@ data Event =
 
 -- | Given the hand of the current player, the hand of the target (if there is
 -- one), and the action being played, return the change we need to make.
-applyAction' :: Card -> Maybe Card -> Action -> Result
+applyAction' :: Card -> Maybe Card -> Action -> Event
 applyAction' _ hand (viewAction -> (_, Soldier, Guess target guess)) =
   if fromJust hand == guess
   then Eliminated target
@@ -275,7 +285,7 @@ applyAction' _ _ action = error $ "Invalid action: " ++ (show action)
 --
 -- If the target player is protected, will return the identity result,
 -- NoChange.
-applyAction :: Round -> Action -> Either BadAction Result
+applyAction :: Round -> Action -> Either BadAction Event
 applyAction round action@(viewAction -> (pid, _, play)) = do
   (_, sourceHand) <- getActivePlayerHand round pid
   case getTarget play of
@@ -288,20 +298,20 @@ applyAction round action@(viewAction -> (pid, _, play)) = do
 
 
 -- XXX: Lots of these re-get players from the Round that have already been
--- retrieved by applyAction. Perhaps we could include that data in the Result
+-- retrieved by applyAction. Perhaps we could include that data in the Event
 -- structure so this simply returns a Round.
-applyResult :: Round -> Result -> Either BadAction Round
-applyResult round NoChange = return round
-applyResult round (Protected pid) = adjustPlayer round pid protect
-applyResult round (SwappedHands pid1 pid2) = do
+applyEvent :: Round -> Event -> Either BadAction Round
+applyEvent round NoChange = return round
+applyEvent round (Protected pid) = adjustPlayer round pid protect
+applyEvent round (SwappedHands pid1 pid2) = do
   p1 <- getActivePlayer round pid1
   p2 <- getActivePlayer round pid2
   case swapHands p1 p2 of
    Nothing -> error $ "Inconsistency! Players inactive when swapping hands."
    Just (p1', p2') -> return $ (replace pid2 p2' . replace pid1 p1') round
    where replace pid p rnd = replacePlayer rnd pid p
-applyResult round (Eliminated pid) = adjustPlayer round pid eliminate
-applyResult round (ForcedDiscard pid) =
+applyEvent round (Eliminated pid) = adjustPlayer round pid eliminate
+applyEvent round (ForcedDiscard pid) =
   let (round', card) = drawCard round in
   do
     player <- getActivePlayer round pid
@@ -310,7 +320,7 @@ applyResult round (ForcedDiscard pid) =
      Just player'
        | player' == player -> return round
        | otherwise -> return $ replacePlayer round' pid player'
-applyResult round (ForcedReveal _ _ _) = return round
+applyEvent round (ForcedReveal _ _ _) = return round
 
 
 
@@ -319,7 +329,7 @@ maybeToEither e Nothing = Left e
 maybeToEither _ (Just a) = Right a
 
 
-playTurn :: Round -> Either (Round, Event) (Card -> Play -> Either BadAction (Round, Event))
+playTurn :: Round -> Either (Round, Result) (Card -> Play -> Either BadAction (Round, Result))
 playTurn round = do
   (playerId, (dealt, hand)) <- case (currentTurn round) of
                                 Nothing -> Left $ (round, RoundOver)
@@ -342,7 +352,7 @@ playTurn round = do
                  Left e -> Left $ InvalidPlay e
                  Right a -> return a
       result <- applyAction round' action
-      round'' <- applyResult round' result
+      round'' <- applyEvent round' result
       return $ (nextTurn round'', Played action result)
 
     bustOut pid dealt hand =

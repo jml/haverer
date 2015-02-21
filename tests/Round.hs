@@ -30,8 +30,8 @@ import Haverer.Deck (Card)
 import Haverer.Player (getHand, getDiscards, isProtected, PlayerId)
 import Haverer.Round (
   Round
-  , Event(..)
-  , Result(NoChange)
+  , Event(NoChange)
+  , Result(..)
   , currentPlayer
   , currentTurn
   , getActivePlayers

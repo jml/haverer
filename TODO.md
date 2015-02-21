@@ -20,3 +20,6 @@ there are still these other things that need to be done.
   shouldn't be possible" than `error`? Specifically one that gives some kind
   of moral equivalent of a stack trace, since it's _always_ a programming
   error.
+* `Haverer.Round` exports `Event` and `Result` as concrete types with all of
+  their constructors. This is super-useful for pattern matching, but feels
+  like it's leaking too much
