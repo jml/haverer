@@ -14,40 +14,12 @@
 
 -- The dreaded 'utils' module of death.
 module Utils (
-  shuffled,
-  iterateM',
   isSubListOf,
   ) where
 
 import Data.List (delete, sort)
-import Test.Tasty.QuickCheck
-import System.Random.Shuffle (shuffle)
 
 
--- | Take a list and generate a shuffled version of it.
-shuffled ::[a] -> Gen [a]
-shuffled xs = do
-  rs <- randomOrdering (length xs - 1)
-  return $ shuffle xs rs
-  where
-    -- a sequence (r1,...r[n-1]) of numbers such that r[i] is an independent
-    -- sample from a uniform random distribution [0..n-i]
-    randomOrdering 0 = return []
-    randomOrdering n =
-      do y <- choose (0, n)
-         ys <- randomOrdering (n - 1)
-         return (y:ys)
-
-
--- | Kind of like iterate, but for a monadic function, such that the result of
--- calling once is used as the argument for calling next.
-iterateM' :: (Monad m) => Int -> (a -> m a) -> a -> m [a]
-iterateM' n f x
-  | n == 0 = return [x]
-  | n > 0  = do y <- f x
-                ys <- iterateM' (n - 1) f y
-                return (y:ys)
-  | otherwise = return []
 
 
 isSubListOf :: (Eq a, Ord a) => [a] -> [a] -> Bool

@@ -15,7 +15,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE TypeSynonymInstances #-}
 
-module Haverer.Prompt where
+module Haverer.CLI.Prompt where
 
 import Data.List (intercalate)
 import Text.Read (readMaybe)

@@ -33,15 +33,9 @@ import Control.Monad.Random (MonadRandom)
 import Data.List (sort, (\\))
 import System.Random.Shuffle (shuffleM)
 
-import Haverer.Prompt (ConsoleText, toText)
-
 
 data Card = Soldier | Clown | Knight | Priestess | Wizard | General | Minister | Prince
           deriving (Eq, Show, Ord, Enum)
-
-
-instance ConsoleText Card where
-  toText = show
 
 
 allCards :: [Card]
