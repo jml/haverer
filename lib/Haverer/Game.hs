@@ -28,7 +28,6 @@ module Haverer.Game (
 import Control.Applicative ((<$>))
 import Control.Monad.Random (MonadRandom)
 
-import qualified Haverer.Counter as Counter
 import Haverer.Deck (Deck, Complete, newDeck)
 import Haverer.Player (
   PlayerId,
@@ -37,6 +36,8 @@ import Haverer.Player (
   )
 import Haverer.Round (Round)
 import qualified Haverer.Round as Round
+
+import qualified Haverer.Internal.Counter as Counter
 
 
 type PlayerScores = Counter.Counter PlayerId Int

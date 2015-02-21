@@ -12,7 +12,7 @@
 -- See the License for the specific language governing permissions and
 -- limitations under the License.
 
-module Haverer.Counter (
+module Haverer.Internal.Counter (
   Counter,
   increment,
   incrementMany,

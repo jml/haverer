@@ -23,7 +23,7 @@ import Control.Monad (foldM)
 import Data.Maybe (fromJust)
 import Data.List
 
-import Haverer.Ring
+import Haverer.Internal.Ring
 
 
 instance (Arbitrary a) => Arbitrary (Ring a) where

@@ -72,8 +72,9 @@ import Haverer.Player (
   toPlayers,
   unprotect
   )
-import Haverer.Ring (Ring, advance1, currentItem, dropItem1, makeRing, nextItem)
-import qualified Haverer.Ring as Ring
+
+import Haverer.Internal.Ring (Ring, advance1, currentItem, dropItem1, makeRing, nextItem)
+import qualified Haverer.Internal.Ring as Ring
 
 
 data Round = Round {
