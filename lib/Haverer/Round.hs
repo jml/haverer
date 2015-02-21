@@ -224,7 +224,7 @@ data BadAction = NoSuchPlayer PlayerId
 
 -- XXX: Terrible name
 data Result =
-  NothingHappened |
+  NoChange |
   Protected PlayerId |
   SwappedHands PlayerId PlayerId |
   Eliminated PlayerId |
@@ -250,13 +250,13 @@ applyAction' :: Card -> Maybe Card -> Action -> Result
 applyAction' _ hand (viewAction -> (_, Soldier, Guess target guess)) =
   if fromJust hand == guess
   then Eliminated target
-  else NothingHappened
+  else NoChange
 applyAction' _ (Just targetCard) (viewAction -> (pid, Clown, Attack target)) =
   ForcedReveal pid target targetCard
 applyAction' sourceHand targetHand (viewAction -> (pid, Knight, Attack target)) =
   case compare sourceHand (fromJust targetHand) of
     LT -> Eliminated pid
-    EQ -> NothingHappened
+    EQ -> NoChange
     GT -> Eliminated target
 applyAction' _ _ (viewAction -> (pid, Priestess, NoEffect)) = Protected pid
 applyAction' _ hand (viewAction -> (_, Wizard, Attack target)) =
@@ -264,7 +264,7 @@ applyAction' _ hand (viewAction -> (_, Wizard, Attack target)) =
     Just Prince -> Eliminated target
     _ -> ForcedDiscard target
 applyAction' _ _ (viewAction -> (pid, General, Attack target)) = SwappedHands target pid
-applyAction' _ _ (viewAction -> (_, Minister, NoEffect)) = NothingHappened
+applyAction' _ _ (viewAction -> (_, Minister, NoEffect)) = NoChange
 applyAction' _ _ (viewAction -> (pid, Prince, NoEffect)) = Eliminated pid
 applyAction' _ _ action = error $ "Invalid action: " ++ (show action)
 
@@ -274,7 +274,7 @@ applyAction' _ _ action = error $ "Invalid action: " ++ (show action)
 -- nonexistent player.
 --
 -- If the target player is protected, will return the identity result,
--- NothingHappened.
+-- NoChange.
 applyAction :: Round -> Action -> Either BadAction Result
 applyAction round action@(viewAction -> (pid, _, play)) = do
   (_, sourceHand) <- getActivePlayerHand round pid
@@ -283,7 +283,7 @@ applyAction round action@(viewAction -> (pid, _, play)) = do
    Just target -> do
      (targetPlayer, targetHand) <- getActivePlayerHand round target
      if fromJust (isProtected targetPlayer)
-       then return NothingHappened
+       then return NoChange
        else return $ applyAction' sourceHand (Just targetHand) action
 
 
@@ -291,7 +291,7 @@ applyAction round action@(viewAction -> (pid, _, play)) = do
 -- retrieved by applyAction. Perhaps we could include that data in the Result
 -- structure so this simply returns a Round.
 applyResult :: Round -> Result -> Either BadAction Round
-applyResult round NothingHappened = return round
+applyResult round NoChange = return round
 applyResult round (Protected pid) = adjustPlayer round pid protect
 applyResult round (SwappedHands pid1 pid2) = do
   p1 <- getActivePlayer round pid1

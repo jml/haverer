@@ -79,23 +79,23 @@ instance ConsoleText Event where
   -- FIXME: Don't have quite enough information here to disambiguate between
   -- Soldier attack failing due to wrong guess and Soldier attack failing due to
   -- Priestess.
-  toText (Played (viewAction -> (pid1, Soldier, Guess pid2 card)) NothingHappened) =
+  toText (Played (viewAction -> (pid1, Soldier, Guess pid2 card)) NoChange) =
     toText pid1 ++ " wrongly guessed " ++ toText pid2 ++ " had a " ++ toText card
     ++ ". Nothing happened, maybe it was the right guess and they were protected."
 
   -- FIXME: Don't have quite enough information here to disambiguate between
   -- Knight attack failing due to tie and Knight attack failing due to
   -- Priestess.
-  toText (Played (viewAction -> (pid1, Knight, Attack pid2)) NothingHappened) =
+  toText (Played (viewAction -> (pid1, Knight, Attack pid2)) NoChange) =
     toText pid1 ++ " attacked " ++ toText pid2 ++ " with a Knight, but nothing happened. "
     ++ "Because of a bug in the software, you don't know if it's because of a tie or "
     ++ "because " ++ toText pid2 ++ " is protected by the Priestess."
 
-  toText (Played (viewAction -> (pid1, card, Attack pid2)) NothingHappened) =
+  toText (Played (viewAction -> (pid1, card, Attack pid2)) NoChange) =
     toText pid1 ++ " played " ++ toText card ++ " against " ++ toText pid2 ++
     ", but they were protected by the Priestess, so nothing happened"
 
-  toText (Played (viewAction -> (pid1, card, NoEffect)) NothingHappened) =
+  toText (Played (viewAction -> (pid1, card, NoEffect)) NoChange) =
     toText pid1 ++ " played " ++ toText card
 
   toText (BustedOut pid c1 c2) =

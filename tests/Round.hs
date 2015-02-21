@@ -31,7 +31,7 @@ import Haverer.Player (getHand, getDiscards, isProtected, PlayerId)
 import Haverer.Round (
   Round
   , Event(..)
-  , Result(NothingHappened)
+  , Result(NoChange)
   , currentPlayer
   , currentTurn
   , getActivePlayers
@@ -100,7 +100,7 @@ prop_protectedUnaffected round card play =
    Just True == (isProtected =<< targetPlayer) ==>
    let (round', Played _ result) = playTurn' round card play in
     prop_playerSame (fromJust target) round round' &&
-    (result == NothingHappened)
+    (result == NoChange)
 
 
 roundIsBusted :: Round -> Bool
