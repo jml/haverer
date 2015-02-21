@@ -30,7 +30,7 @@ build-type:          Simple
 cabal-version:       >=1.10
 
 library
-  hs-source-dirs: src/lib
+  hs-source-dirs: lib
   build-depends: base >=4.7 && <4.8
                , containers
                , random-shuffle
