@@ -16,7 +16,7 @@ module Haverer.Game (
   Game,
   Outcome,
   finalScores,
-  newGame,
+  makeGame,
   newRound,
   players,
   playersWon,
@@ -54,8 +54,8 @@ data Outcome = Outcome { _unoutcome :: PlayerScores } deriving Show
 
 
 -- | Create a new game for the given set of players.
-newGame :: PlayerSet -> Game
-newGame ps = Game {
+makeGame :: PlayerSet -> Game
+makeGame ps = Game {
   _winningScore = 4, -- XXX: in some rule sets, this varies based on the number of players
   _players = (Counter.initialize $ toPlayers ps),
   _playerSet = ps,

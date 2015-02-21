@@ -53,7 +53,7 @@ class Monad m => MonadEngine m where
 
 playGame :: (Functor m, MonadRandom m, MonadEngine m) => PlayerSet -> m Game.Outcome
 playGame players = do
-  let game = Game.newGame players
+  let game = Game.makeGame players
   gameStarted game
   outcome <- playGame' game
   gameOver outcome
