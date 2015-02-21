@@ -12,6 +12,7 @@
 -- See the License for the specific language governing permissions and
 -- limitations under the License.
 
+{-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE ViewPatterns #-}
 
 module Haverer.Round ( BadAction
@@ -40,6 +41,8 @@ module Haverer.Round ( BadAction
 import Prelude hiding (round)
 
 import Control.Applicative ((<$>))
+import Control.Lens hiding (chosen)
+
 import Data.Function (on)
 import Data.List (groupBy, sortBy)
 import Data.Maybe (fromJust, isJust, maybeToList)
@@ -77,6 +80,10 @@ import Haverer.Internal.Ring (Ring, advance1, currentItem, dropItem1, makeRing, 
 import qualified Haverer.Internal.Ring as Ring
 
 
+-- XXX: Consider popping this out so that it's the constructor of the Round.
+data State = NotStarted | Turn Card | Playing | Over deriving Show
+
+
 data Round = Round {
   _stack :: Deck Incomplete,
   _playOrder :: Ring PlayerId,
@@ -86,44 +93,45 @@ data Round = Round {
 } deriving Show
 
 
--- XXX: Consider popping this out so that it's the constructor of the Round.
-data State = NotStarted | Turn Card | Playing | Over deriving Show
+makeLenses ''Round
+
+
 
 makeRound :: Deck Complete -> PlayerSet -> Round
-makeRound deck players =
+makeRound deck playerSet =
   nextTurn $ case deal deck (length playerList) of
    (remainder, Just cards) ->
      case pop remainder of
       (_, Nothing) -> error ("Not enough cards for burn: " ++ show deck)
-      (stack, Just burn) -> Round {
-        _stack = stack,
+      (stack', Just burn') -> Round {
+        _stack = stack',
         _playOrder = fromJust (makeRing playerList),
         _players = Map.fromList $ zip playerList (map makePlayer cards),
         _state = NotStarted,
-        _burn = burn
+        _burn = burn'
         }
-   _ -> error ("Given a complete deck - " ++ show deck ++ "- that didn't have enough cards for players - " ++ show players)
-  where playerList = toPlayers players
+   _ -> error ("Given a complete deck - " ++ show deck ++ "- that didn't have enough cards for players - " ++ show playerSet)
+  where playerList = toPlayers playerSet
 
 
 remainingCards :: Round -> Int
-remainingCards = length . Deck.toList . _stack
+remainingCards = length . Deck.toList . view stack
 
 
 getPlayers :: Round -> [PlayerId]
-getPlayers = Map.keys . _players
+getPlayers = Map.keys . view players
 
 
 getPlayerMap :: Round -> Map.Map PlayerId Player
-getPlayerMap = _players
+getPlayerMap = view players
 
 
 getActivePlayers :: Round -> [PlayerId]
-getActivePlayers = Ring.toList . _playOrder
+getActivePlayers = Ring.toList . view playOrder
 
 
 getPlayer :: Round -> PlayerId -> Maybe Player
-getPlayer Round { _players = players } pid = Map.lookup pid players
+getPlayer round pid = Map.lookup pid (view players round)
 
 
 getActivePlayer :: Round -> PlayerId -> Either BadAction Player
@@ -146,24 +154,24 @@ getActivePlayerHand round pid =
 
 drawCard :: Round -> (Round, Maybe Card)
 drawCard r =
-  let (stack, card) = pop (_stack r) in
-  (r { _stack = stack }, card)
+  let (stack', card) = pop (_stack r) in
+  (r { _stack = stack' }, card)
 
 
 currentPlayer :: Round -> Maybe PlayerId
 currentPlayer rnd =
-  case _state rnd of
+  case view state rnd of
    Over -> Nothing
    NotStarted -> Nothing
-   Turn _ -> Just $ (currentItem . _playOrder) rnd
-   Playing -> Just $ (currentItem . _playOrder) rnd
+   Turn _ -> Just $ (currentItem . view playOrder) rnd
+   Playing -> Just $ (currentItem . view playOrder) rnd
 
 
 currentHand :: Round -> Maybe (Card, Card)
 currentHand rnd = do
   pid <- currentPlayer rnd
   hand <- getPlayerHand rnd pid
-  case _state rnd of
+  case view state rnd of
    Turn dealt -> return (dealt, hand)
    _ -> Nothing
 
@@ -177,12 +185,12 @@ currentTurn rnd = do
 
 nextPlayer :: Round -> Maybe PlayerId
 nextPlayer rnd =
-  case _state rnd of
+  case view state rnd of
    Over -> Nothing
-   NotStarted -> Just $ (currentItem playOrder)
-   Turn _ -> Just $ nextItem playOrder
-   Playing -> Just $ nextItem playOrder
-  where playOrder = _playOrder rnd
+   NotStarted -> Just $ (currentItem playOrder')
+   Turn _ -> Just $ nextItem playOrder'
+   Playing -> Just $ nextItem playOrder'
+  where playOrder' = view playOrder rnd
 
 
 -- XXX: Would using a State monad make any of this code better?
@@ -202,7 +210,7 @@ nextTurn (Round { _state = Turn _ } ) =
 nextTurn r =
   case (drawCard r, nextPlayer r) of
    ((r2, Just card), Just pid) ->
-     case advance1 (_playOrder r) of
+     case advance1 (view playOrder r) of
       Left _ -> r { _state = Over }
       Right newPlayOrder ->
         case getPlayer r pid >>= unprotect of
@@ -371,7 +379,7 @@ data Victory
 
 -- | The currently surviving players in the round, with their cards.
 survivors :: Round -> [(PlayerId, Card)]
-survivors = Map.toList . Map.mapMaybe getHand . _players
+survivors = Map.toList . Map.mapMaybe getHand . view players
 
 
 -- | If the Round is Over, return the Victory data. Otherwise, Nothing.
@@ -418,9 +426,9 @@ prop_allCardsPresent =
   isJust . Deck.makeDeck . allCards
   where allCards rnd =
           _burn rnd : (
-            (Deck.toList . _stack) rnd
-            ++ (concatMap getDiscards . Map.elems . _players) rnd
-            ++ (concatMap (maybeToList . getHand) . Map.elems . _players) rnd)
+            (Deck.toList . view stack) rnd
+            ++ (concatMap getDiscards . Map.elems . view players) rnd
+            ++ (concatMap (maybeToList . getHand) . Map.elems . view players) rnd)
             ++ (
             case _state rnd of
               Turn x -> [x]
@@ -428,18 +436,18 @@ prop_allCardsPresent =
 
 
 prop_burnCardsSame :: [Round] -> Bool
-prop_burnCardsSame (x:xs) = all ((== _burn x) . _burn) xs
+prop_burnCardsSame (x:xs) = all ((== view burn x) . view burn) xs
 prop_burnCardsSame [] = True
 
 
 prop_ringIsActivePlayers :: Round -> Bool
 prop_ringIsActivePlayers r =
   (Map.keys . Map.mapMaybe getHand . _players) r ==
-  (Ring.toList . _playOrder) r
+  (Ring.toList . view playOrder) r
 
 
 prop_multipleActivePlayers :: Round -> Bool
 prop_multipleActivePlayers r =
-  case _state r of
+  case view state r of
    Over -> True
-   _ -> (Ring.ringSize . _playOrder $ r) > 1
+   _ -> (Ring.ringSize $ view playOrder r) > 1
