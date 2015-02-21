@@ -15,16 +15,22 @@
 {-# LANGUAGE ViewPatterns #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
-module Haverer.CLI.CommandLine () where
+module Haverer.CLI.CommandLine (
+  formatScores,
+  pickNumPlayers,
+  pickCardToPlay,
+  pickPlay
+  ) where
 
 import Prelude hiding (round)
 
 import Data.List (intercalate)
 import qualified Data.Map as Map
+import Text.Read (readMaybe)
 
 import Haverer.Action (Play(..), viewAction)
 import Haverer.Deck (Card(..))
-import Haverer.Player (PlayerId, getDiscards, isProtected)
+import Haverer.Player (PlayerId, PlayerSet, getDiscards, isProtected, toPlayers)
 import Haverer.Round (
   Event(..),
   Result(..),
@@ -34,7 +40,14 @@ import Haverer.Round (
   remainingCards
   )
 
-import Haverer.CLI.Prompt (ConsoleText, toText, underline)
+import Haverer.CLI.Prompt (
+  ConsoleText,
+  repeatedlyPrompt,
+  chooseItem,
+  chooseItem',
+  underline,
+  toText
+  )
 
 
 instance ConsoleText Card where
@@ -138,3 +151,54 @@ instance ConsoleText Victory where
     toText winner ++ " wins holding " ++ toText card
   toText (HighestCard card winners _) =
     "Many winners holding " ++ toText card ++ ": " ++ (intercalate ", " (map toText winners))
+
+
+formatScores :: [(PlayerId, Int)] -> String
+formatScores scores =
+  underline '-' "Scores" ++ "\n" ++
+  unlines (map formatScore scores)
+  where formatScore (pid, score) = toText pid ++ ": " ++ toText score
+
+
+pickNumPlayers :: IO Int
+pickNumPlayers =
+  repeatedlyPrompt "Pick number of players: " parseNumPlayers
+  where
+    parseNumPlayers s =
+      case readMaybe s of
+       Nothing -> Left errMsg
+       Just i -> if 2 <= i && i <= 4 then Right i else Left errMsg
+    errMsg = "Please enter a number between 2 and 4"
+
+
+pickCardToPlay :: (Card, Card) -> IO Card
+pickCardToPlay (dealt, hand) =
+  chooseItem "\nPlease choose a card: " [dealt, hand]
+
+
+pickPlay :: Card -> PlayerSet -> IO Play
+pickPlay card players =
+  case card of
+   Soldier -> pickGuess players
+   Clown -> pickAttack players
+   Knight -> pickAttack players
+   Priestess -> return NoEffect
+   Wizard -> pickAttack players
+   General -> pickAttack players
+   Minister -> return NoEffect
+   Prince -> return NoEffect
+
+
+-- XXX: Exclude self-targeting when it's not legal
+pickTarget :: PlayerSet -> IO PlayerId
+pickTarget ps = chooseItem "\nPlease choose a target: " (toPlayers ps)
+
+pickAttack :: PlayerSet -> IO Play
+pickAttack players = fmap Attack (pickTarget players)
+
+pickGuess :: PlayerSet -> IO Play
+pickGuess players = do
+  target <- pickTarget players
+  guess <- pickGuessCard
+  return $ Guess target guess
+  where pickGuessCard = chooseItem' "\nWhat card do they have?" 2 [Clown ..]
