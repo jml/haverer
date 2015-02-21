@@ -72,7 +72,7 @@ import Haverer.Player (
   toPlayers,
   unprotect
   )
-import Haverer.Ring (Ring, advance1, currentItem, dropItem1, newRing, nextItem)
+import Haverer.Ring (Ring, advance1, currentItem, dropItem1, makeRing, nextItem)
 import qualified Haverer.Ring as Ring
 
 
@@ -97,7 +97,7 @@ makeRound deck players =
       (_, Nothing) -> error ("Not enough cards for burn: " ++ show deck)
       (stack, Just burn) -> Round {
         _stack = stack,
-        _playOrder = fromJust (newRing playerList),
+        _playOrder = fromJust (makeRing playerList),
         _players = Map.fromList $ zip playerList (map newPlayer cards),
         _state = NotStarted,
         _burn = burn

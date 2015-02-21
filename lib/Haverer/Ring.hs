@@ -14,7 +14,7 @@
 
 module Haverer.Ring (
   Ring
-  , newRing
+  , makeRing
   , advance
   , advance1
   , dropItem
@@ -33,9 +33,9 @@ data Ring a = Ring {
   } deriving (Show, Eq)
 
 
-newRing :: [a] -> Maybe (Ring a)
-newRing [] = Nothing
-newRing xs = Just $ Ring {
+makeRing :: [a] -> Maybe (Ring a)
+makeRing [] = Nothing
+makeRing xs = Just $ Ring {
   _items = xs,
   _current = 0,
   _length = length xs
