@@ -12,20 +12,20 @@
 -- See the License for the specific language governing permissions and
 -- limitations under the License.
 
-import Test.Tasty
+module CLI where
 
-import qualified CLI
-import qualified Ring
-import qualified Round
+import Data.List (isPrefixOf)
+
+import Test.Tasty
+import Test.Tasty.QuickCheck
+
+import Haverer.CLI.CommandLine ()
+import Haverer.CLI.Prompt (toText)
+import Haverer.Testing (inRoundEvent)
 
 
 suite :: TestTree
-suite =
-  testGroup "Test Suite" [
-    CLI.suite
-    , Ring.suite
-    , Round.suite
-    ]
-
-main :: IO ()
-main = defaultMain suite
+suite = testGroup "Haverer.CLI" [
+  testProperty "event toText coverage" $
+  forAll inRoundEvent $ not . isPrefixOf "UNKNOWN" . toText
+  ]

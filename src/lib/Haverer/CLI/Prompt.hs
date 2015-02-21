@@ -15,7 +15,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE TypeSynonymInstances #-}
 
-module Haverer.Prompt where
+module Haverer.CLI.Prompt where
 
 -- TODO: Move this, CommandLine, and Main to a completely separate build
 -- target in their own directory.

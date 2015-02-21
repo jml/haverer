@@ -21,12 +21,13 @@ import Data.List (intercalate)
 import Text.Read
 
 import Haverer.Action (Play(..))
-import Haverer.CommandLine ()
 import Haverer.Deck (Card(..))
 import qualified Haverer.Engine as E
 import qualified Haverer.Game as Game
 import Haverer.Player (PlayerId, PlayerSet, makePlayerSet, toPlayers)
-import Haverer.Prompt (repeatedlyPrompt, chooseItem, chooseItem', underline, toText)
+
+import Haverer.CLI.CommandLine ()
+import Haverer.CLI.Prompt (repeatedlyPrompt, chooseItem, chooseItem', underline, toText)
 
 
 pickNumPlayers :: IO Int

@@ -15,7 +15,7 @@
 {-# LANGUAGE ViewPatterns #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
-module Haverer.CommandLine () where
+module Haverer.CLI.CommandLine () where
 
 import Prelude hiding (round)
 
@@ -33,7 +33,8 @@ import Haverer.Round (
   getPlayerMap,
   remainingCards
   )
-import Haverer.Prompt (ConsoleText, toText, underline)
+
+import Haverer.CLI.Prompt (ConsoleText, toText, underline)
 
 
 instance ConsoleText Card where

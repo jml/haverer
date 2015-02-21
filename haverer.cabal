@@ -39,13 +39,13 @@ library
                , tasty >= 0.7
                , tasty-quickcheck
   exposed-modules: Haverer.Action
-                 , Haverer.CommandLine
+                 , Haverer.CLI.CommandLine
+                 , Haverer.CLI.Prompt
                  , Haverer.Counter
                  , Haverer.Deck
                  , Haverer.Engine
                  , Haverer.Game
                  , Haverer.Player
-                 , Haverer.Prompt
                  , Haverer.Round
                  , Haverer.Ring
                  , Haverer.Testing

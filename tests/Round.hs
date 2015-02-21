@@ -20,17 +20,14 @@ module Round where
 import Prelude hiding (round)
 
 import Control.Applicative ((<$>))
-import Data.List (isPrefixOf)
 import Data.Maybe (fromJust)
 
 import Test.Tasty
 import Test.Tasty.QuickCheck
 
 import Haverer.Action (Play(..), bustingHand, getTarget)
-import Haverer.CommandLine ()
 import Haverer.Deck (Card)
 import Haverer.Player (getHand, getDiscards, isProtected, PlayerId)
-import Haverer.Prompt (toText)
 import Haverer.Round (
   Round
   , Event(..)
@@ -156,7 +153,5 @@ suite = testGroup "Haverer.Round" [
     forAll genAttacksOnProtectedPlayers $ \(r, c, p) -> prop_protectedUnaffected r c p
   , testProperty "minister + high card deactivates player" $
     forAll (randomRound `suchThat` roundIsBusted) $ prop_ministerBustsOut
-  , testProperty "event toText coverage" $
-    forAll inRoundEvent $ not . isPrefixOf "UNKNOWN" . toText
   ]
  ]
