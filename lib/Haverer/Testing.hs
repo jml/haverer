@@ -17,7 +17,7 @@ import Haverer.Player (makePlayerSet, PlayerSet)
 import Haverer.Round (
   Round
   , Event(..)
-  , newRound
+  , makeRound
   , playTurn
   )
 import Haverer.ValidMoves (getValidMoves)
@@ -37,7 +37,7 @@ instance Arbitrary PlayerSet where
 instance Arbitrary Round where
   -- | A fresh, unplayed round with an arbitrary number of players and a
   -- shuffled deck.
-  arbitrary = newRound <$> arbitrary <*> arbitrary
+  arbitrary = makeRound <$> arbitrary <*> arbitrary
 
 
 -- | For a Round and a known-good Card and Play, play the cards and return the

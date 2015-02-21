@@ -64,7 +64,7 @@ newGame ps = Game {
 
 -- | Start a new round of the game with an already-shuffled deck of cards.
 newRound' :: Game -> Deck Complete -> Round
-newRound' game deck = Round.newRound deck (_playerSet game)
+newRound' game deck = Round.makeRound deck (_playerSet game)
 
 -- | Start a new round of the game, shuffling the deck cards ourselves.
 newRound :: (Functor m, MonadRandom m) => Game -> m Round

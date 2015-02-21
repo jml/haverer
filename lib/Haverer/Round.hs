@@ -24,7 +24,7 @@ module Haverer.Round ( BadAction
                      , getPlayerMap
                      , getPlayers
                      , getWinners
-                     , newRound
+                     , makeRound
                      , nextPlayer
                      , playTurn
                      , prop_allCardsPresent
@@ -89,8 +89,8 @@ data Round = Round {
 data State = NotStarted | Turn Card | Playing | Over deriving Show
 
 -- TODO: Rename newFoo to makeFoo
-newRound :: Deck Complete -> PlayerSet -> Round
-newRound deck players =
+makeRound :: Deck Complete -> PlayerSet -> Round
+makeRound deck players =
   nextTurn $ case deal deck (length playerList) of
    (remainder, Just cards) ->
      case pop remainder of
