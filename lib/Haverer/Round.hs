@@ -88,7 +88,6 @@ data Round = Round {
 -- XXX: Consider popping this out so that it's the constructor of the Round.
 data State = NotStarted | Turn Card | Playing | Over deriving Show
 
--- TODO: Rename newFoo to makeFoo
 makeRound :: Deck Complete -> PlayerSet -> Round
 makeRound deck players =
   nextTurn $ case deal deck (length playerList) of
