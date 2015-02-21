@@ -62,7 +62,7 @@ import Haverer.Player (
   getDiscards,
   getHand,
   isProtected,
-  newPlayer,
+  makePlayer,
   playCard,
   PlayerId,
   Player,
@@ -98,7 +98,7 @@ makeRound deck players =
       (stack, Just burn) -> Round {
         _stack = stack,
         _playOrder = fromJust (makeRing playerList),
-        _players = Map.fromList $ zip playerList (map newPlayer cards),
+        _players = Map.fromList $ zip playerList (map makePlayer cards),
         _state = NotStarted,
         _burn = burn
         }

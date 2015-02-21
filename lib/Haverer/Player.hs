@@ -21,7 +21,7 @@ module Haverer.Player (
   getHand,
   isProtected,
   makePlayerSet,
-  newPlayer,
+  makePlayer,
   Player,
   PlayerId,
   PlayerSet,
@@ -76,8 +76,8 @@ data Player = Active {
   } | Inactive [Card] deriving (Show, Eq)
 
 
-newPlayer :: Card -> Player
-newPlayer card = Active {
+makePlayer :: Card -> Player
+makePlayer card = Active {
   _hand = card,
   _protected = False,
   _discard = []
