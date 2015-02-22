@@ -182,15 +182,14 @@ nextTurn (Round { _state = Turn _ } ) =
 nextTurn round =
   let round' = drawCard' round in
   case nextPlayer round' of
+   Nothing -> set state Over round
    Just pid ->
      case advance1 (view playOrder round) of
       Left _ -> set state Over round
       Right newPlayOrder ->
-        case getPlayer round pid >>= unprotect of
-         Nothing -> error $ "Couldn't get current player as active: " ++ (show pid)
-         Just player ->
-           setActivePlayer (round' & playOrder .~ newPlayOrder) pid player
-   _ -> set state Over round
+        case modifyActivePlayer round' pid unprotect of
+         Left e -> error $ "Couldn't unprotect current player: " ++ (show e)
+         Right round'' -> set playOrder newPlayOrder round''
 
 
 drawCard' :: Round -> Round
@@ -285,28 +284,22 @@ applyAction round action@(viewAction -> (pid, _, play)) = do
 -- XXX: Lots of these re-get players from the Round that have already been
 -- retrieved by applyAction. Perhaps we could include that data in the Event
 -- structure so this simply returns a Round.
+
+-- | Apply a change to the Round.
 applyEvent :: Round -> Event -> Either BadAction Round
 applyEvent round NoChange = return round
 applyEvent round (Protected pid) = modifyActivePlayer round pid protect
 applyEvent round (SwappedHands pid1 pid2) = do
   p1 <- getActivePlayer round pid1
   p2 <- getActivePlayer round pid2
-  case swapHands p1 p2 of
-   Nothing -> error $ "Inconsistency! Players inactive when swapping hands."
-   Just (p1', p2') -> return $ (replace pid2 p2' . replace pid1 p1') round
+  let (p1', p2') = swapHands p1 p2 in
+   return $ (replace pid2 p2' . replace pid1 p1') round
    where replace pid p rnd = setActivePlayer rnd pid p
 applyEvent round (Eliminated pid) = modifyActivePlayer round pid eliminate
 applyEvent round (ForcedDiscard pid) =
   let (round', card) = drawCard round in
-  do
-    player <- getActivePlayer round pid
-    case discardAndDraw player card of
-     Nothing -> Left $ InactivePlayer pid  -- XXX: Really shouldn't happen.
-     Just player'
-       | player' == player -> return round
-       | otherwise -> return $ setActivePlayer round' pid player'
+  modifyActivePlayer round' pid (flip discardAndDraw card)
 applyEvent round (ForcedReveal _ _ _) = return round
-
 
 
 maybeToEither :: e -> Maybe a -> Either e a
@@ -376,14 +369,8 @@ getWinners (HighestCard _ pids _) = pids
 
 -- | Update the given player in Round. If the update function returns Nothing,
 -- then that is taken to mean the player was inactive.
-modifyActivePlayer :: Round -> PlayerId -> (Player -> Maybe Player) -> Either BadAction Round
-modifyActivePlayer rnd pid f =
-  case getPlayer rnd pid of
-   Nothing -> Left $ NoSuchPlayer pid
-   Just player ->
-     case f player of
-      Nothing -> Left $ InactivePlayer pid
-      Just newP -> Right $ setActivePlayer rnd pid newP
+modifyActivePlayer :: Round -> PlayerId -> (Player -> Player) -> Either BadAction Round
+modifyActivePlayer rnd pid f = setActivePlayer rnd pid <$> f <$> getActivePlayer rnd pid
 
 
 -- | Replace the given player in the Round. If the new player is inactive,

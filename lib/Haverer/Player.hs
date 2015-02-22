@@ -88,47 +88,33 @@ makePlayer card = Active {
   }
 
 
-operateOn :: (Player -> Player) -> Player -> Maybe Player
-operateOn _ (Inactive _) = Nothing
-operateOn _ player@(Active _ True _) = Just player
-operateOn f player = Just $ f player
+protect :: Player -> Player
+protect = set protected True
 
+unprotect :: Player -> Player
+unprotect = set protected False
 
-protect :: Player -> Maybe Player
-protect = _setProtect True
+eliminate :: Player -> Player
+eliminate player@(Inactive _) = player
+eliminate (Active card _ discards) = Inactive (card:discards)
 
-unprotect :: Player -> Maybe Player
-unprotect = _setProtect False
-
-_setProtect :: Bool -> Player -> Maybe Player
-_setProtect _ (Inactive _) = Nothing
-_setProtect p player = Just $ set protected p player
-
-
-
-eliminate :: Player -> Maybe Player
-eliminate = operateOn (\(Active card _ discards) -> Inactive (card:discards))
-
-swapHands :: Player -> Player -> Maybe (Player, Player)
+swapHands :: Player -> Player -> (Player, Player)
 swapHands player1 player2 =
-  case (player1, player2) of
-   (Active h1 p _, Active h2 _ _) ->
-     if p
-     then Just (player1, player2)
-     else Just (set hand h2 player1, set hand h1 player2)
-   _ -> Nothing
+  case (preview hand player1, preview hand player2) of
+   (Just h1, Just h2) ->
+     (set hand h2 player1, set hand h1 player2)
+   _ -> (player1, player2)
 
 
 -- Will not de-activate player if they discard a Prince.
-discardAndDraw :: Player -> Maybe Card -> Maybe Player
-discardAndDraw (Inactive _) _ = Nothing
-discardAndDraw (Active card False discards) Nothing = Just $ Inactive (card:discards)
-discardAndDraw player@(Active _ True _) _ = Just player
+discardAndDraw :: Player -> Maybe Card -> Player
+discardAndDraw player@(Inactive _) _ = player
+discardAndDraw (Active card _ discards) Nothing = Inactive (card:discards)
 discardAndDraw (Active card p discards) (Just newCard) =
-  Just $ Active newCard p (card:discards)
+  Active newCard p (card:discards)
 
 
--- |Given a dealt and chosen card, update the hand to chosen, and chuck
+-- | Given a dealt and chosen card, update the hand to chosen, and chuck
 -- whatever wasn't played onto the discard pile.
 playCard :: Player -> Card -> Card -> Maybe Player
 playCard (Inactive _) _ _ = Nothing
@@ -140,9 +126,9 @@ playCard (Active h p discards) dealt chosen =
        else Nothing
 
 
-bust :: Player -> Card -> Maybe Player
-bust (Inactive _) _ = Nothing
-bust (Active h _ discards) dealt = Just $ Inactive (h:dealt:discards)
+bust :: Player -> Card -> Player
+bust player@(Inactive _) _ = player
+bust (Active h _ discards) dealt = Inactive (h:dealt:discards)
 
 
 getDiscards :: Player -> [Card]
