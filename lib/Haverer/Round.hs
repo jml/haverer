@@ -134,20 +134,6 @@ getPlayer :: Round -> PlayerId -> Maybe Player
 getPlayer round pid = (view (players . at pid) round)
 
 
-getActivePlayer :: Round -> PlayerId -> Either BadAction Player
-getActivePlayer round pid = fst <$> getActivePlayerHand round pid
-
-
-getActivePlayerHand :: Round -> PlayerId -> Either BadAction (Player, Card)
-getActivePlayerHand round pid =
-  case getPlayer round pid of
-   Nothing -> Left $ NoSuchPlayer pid
-   Just player ->
-     case getHand player of
-      Nothing -> Left $ InactivePlayer pid
-      Just hand -> Right (player, hand)
-
-
 drawCard :: Round -> (Round, Maybe Card)
 drawCard r =
   let (stack', card) = pop (view stack r) in
@@ -194,27 +180,28 @@ nextPlayer rnd =
 
 nextTurn :: Round -> Round
 nextTurn round@(Round { _state = Over }) = round
--- XXX: This is kind of crap. Either eliminate the duplication using some kind
--- of composable operation, or just get rid of the NotStarted state, since we
--- basically don't use it.
-nextTurn round@(Round { _state = NotStarted }) =
-  case drawCard round of
-   (round', Just card) -> set state (Turn card) round'
-   _ -> error $ "Cannot draw a card in just started round: " ++ show round
+nextTurn round@(Round { _state = NotStarted }) = drawCard' round
 nextTurn (Round { _state = Turn _ } ) =
   error "Cannot advance to next turn while waiting for play."
 nextTurn round =
-  case (drawCard round, nextPlayer round) of
-   ((round', Just card), Just pid) ->
+  let round' = drawCard' round in
+  case nextPlayer round' of
+   Just pid ->
      case advance1 (view playOrder round) of
       Left _ -> set state Over round
       Right newPlayOrder ->
         case getPlayer round pid >>= unprotect of
          Nothing -> error $ "Couldn't get current player as active: " ++ (show pid)
          Just player ->
-           replacePlayer (round' & state .~ Turn card & playOrder .~ newPlayOrder) pid player
+           setActivePlayer (round' & playOrder .~ newPlayOrder) pid player
    _ -> set state Over round
 
+
+drawCard' :: Round -> Round
+drawCard' round =
+  case drawCard round of
+   (round', Just card) -> set state (Turn card) round'
+   _ -> set state Over round
 
 
 data BadAction = NoSuchPlayer PlayerId
@@ -311,7 +298,7 @@ applyEvent round (SwappedHands pid1 pid2) = do
   case swapHands p1 p2 of
    Nothing -> error $ "Inconsistency! Players inactive when swapping hands."
    Just (p1', p2') -> return $ (replace pid2 p2' . replace pid1 p1') round
-   where replace pid p rnd = replacePlayer rnd pid p
+   where replace pid p rnd = setActivePlayer rnd pid p
 applyEvent round (Eliminated pid) = adjustPlayer round pid eliminate
 applyEvent round (ForcedDiscard pid) =
   let (round', card) = drawCard round in
@@ -321,7 +308,7 @@ applyEvent round (ForcedDiscard pid) =
      Nothing -> Left $ InactivePlayer pid  -- XXX: Really shouldn't happen.
      Just player'
        | player' == player -> return round
-       | otherwise -> return $ replacePlayer round' pid player'
+       | otherwise -> return $ setActivePlayer round' pid player'
 applyEvent round (ForcedReveal _ _ _) = return round
 
 
@@ -349,7 +336,7 @@ playTurn round = do
     handlePlay playerId player dealt hand chosen play = do
       -- An Action is a valid player, card, play combination.
       player' <- maybeToEither (WrongCard chosen (dealt, hand)) (playCard player dealt chosen)
-      let round' = replacePlayer (set state Playing round) playerId player'
+      let round' = setActivePlayer (set state Playing round) playerId player'
       action <- case playToAction playerId chosen play of
                  Left e -> Left $ InvalidPlay e
                  Right a -> return a
@@ -398,11 +385,11 @@ adjustPlayer rnd pid f =
    Just player ->
      case f player of
       Nothing -> Left $ InactivePlayer pid
-      Just newP -> Right $ replacePlayer rnd pid newP
+      Just newP -> Right $ setActivePlayer rnd pid newP
 
 
-replacePlayer :: Round -> PlayerId -> Player -> Round
-replacePlayer round pid newP =
+setActivePlayer :: Round -> PlayerId -> Player -> Round
+setActivePlayer round pid newP =
   case getHand newP of
    Nothing -> dropPlayer pid
    Just _ -> round'
@@ -412,6 +399,21 @@ replacePlayer round pid newP =
       case dropItem1 (view playOrder round') p of
        Left _ -> set state Over round
        Right newOrder -> set playOrder newOrder round'
+
+
+getActivePlayer :: Round -> PlayerId -> Either BadAction Player
+getActivePlayer round pid = fst <$> getActivePlayerHand round pid
+
+
+
+getActivePlayerHand :: Round -> PlayerId -> Either BadAction (Player, Card)
+getActivePlayerHand round pid =
+  case getPlayer round pid of
+   Nothing -> Left $ NoSuchPlayer pid
+   Just player ->
+     case getHand player of
+      Nothing -> Left $ InactivePlayer pid
+      Just hand -> Right (player, hand)
 
 
 -- | Are all the cards in the Round?
