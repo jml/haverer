@@ -16,23 +16,32 @@
 {-# LANGUAGE ViewPatterns #-}
 
 module Haverer.Round (
-  BadAction
+  -- A Round of a game of Love Letter.
+  Round
+  , makeRound
+  , playTurn
+
+    -- The results of playTurn
+  , BadAction
+  , Result(..)
+  , Event(..)
+
+    -- Information about a Round
   , currentPlayer
   , currentTurn
-  , Event(..)
-  , Result(..)
   , getActivePlayers
   , getPlayer
   , getPlayerMap
   , getPlayers
   , getWinners
-  , makeRound
   , nextPlayer
-  , playTurn
   , remainingCards
-  , Round
+
+    -- The outcome of a Round
   , Victory(..)
   , victory
+
+    -- Properties used for testing that rely on unexposed fields.
   , prop_allCardsPresent
   , prop_burnCardsSame
   , prop_multipleActivePlayers
@@ -97,7 +106,7 @@ data Round = Round {
 makeLenses ''Round
 
 
-
+-- | Make a new round, given a complete Deck and a set of players.
 makeRound :: Deck Complete -> PlayerSet -> Round
 makeRound deck playerSet =
   nextTurn $ case deal deck (length playerList) of
@@ -115,32 +124,46 @@ makeRound deck playerSet =
   where playerList = toPlayers playerSet
 
 
+-- | The number of cards remaining in the deck.
 remainingCards :: Round -> Int
 remainingCards = length . Deck.toList . view stack
 
 
+-- | The IDs of all of the players.
 getPlayers :: Round -> [PlayerId]
 getPlayers = Map.keys . view players
 
 
-getPlayerMap :: Round -> Map.Map PlayerId Player
-getPlayerMap = view players
-
-
+-- | The IDs of all of the active players.
 getActivePlayers :: Round -> [PlayerId]
 getActivePlayers = Ring.toList . view playOrder
 
 
+-- TODO: Rather than exporting Player, export functions that will return
+-- active state, protected state and discard pile. Then move Player data type
+-- and functions to somewhere hidden (Internal maybe?), because it really is
+-- just as implementation detail of Round.
+
+
+-- | A map of player IDs to players.
+getPlayerMap :: Round -> Map.Map PlayerId Player
+getPlayerMap = view players
+
+
+-- | Get the player with the given ID. Nothing if there is no such player.
 getPlayer :: Round -> PlayerId -> Maybe Player
 getPlayer round pid = (view (players . at pid) round)
 
 
+-- | Draw a card from the top of the Deck. Returns the card and a new Round.
 drawCard :: Round -> (Round, Maybe Card)
 drawCard r =
   let (stack', card) = pop (view stack r) in
   (set stack stack' r, card)
 
 
+-- | The ID of the current player. If the Round is over or not started, this
+-- will be Nothing.
 currentPlayer :: Round -> Maybe PlayerId
 currentPlayer rnd =
   case view state rnd of
@@ -175,6 +198,7 @@ nextPlayer rnd =
 -- XXX: Would using a State monad make any of this code better?
 
 
+-- | Progress the Round to the next turn.
 nextTurn :: Round -> Round
 nextTurn round@(Round { _state = Over }) = round
 nextTurn round@(Round { _state = NotStarted }) = drawCard' round
@@ -305,6 +329,19 @@ maybeToEither e Nothing = Left e
 maybeToEither _ (Just a) = Right a
 
 
+-- | Play a turn in a Round.
+--
+-- This is the main function in this module.
+--
+-- A turn has two steps. First, the player draws a card. If their hand "busts
+-- out" (due to holding the Minister and another high card), then they are
+-- eliminated and play proceeds to the next player. This is the `Left` return
+-- value, which returns the new Round and a Result indicating the player bust
+-- out.
+--
+-- Second, the player plays one of these two cards. This is the `Right` return
+-- value, a function that takes the players chosen card and play, and returns
+-- either a BadAction or a new Round together with the Result of the play.
 playTurn :: Round -> Either (Round, Result) (Card -> Play -> Either BadAction (Round, Result))
 playTurn round = do
   (playerId, (dealt, hand)) <- case (currentTurn round) of
