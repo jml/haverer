@@ -287,7 +287,7 @@ applyAction round action@(viewAction -> (pid, _, play)) = do
 -- structure so this simply returns a Round.
 applyEvent :: Round -> Event -> Either BadAction Round
 applyEvent round NoChange = return round
-applyEvent round (Protected pid) = adjustPlayer round pid protect
+applyEvent round (Protected pid) = modifyActivePlayer round pid protect
 applyEvent round (SwappedHands pid1 pid2) = do
   p1 <- getActivePlayer round pid1
   p2 <- getActivePlayer round pid2
@@ -295,7 +295,7 @@ applyEvent round (SwappedHands pid1 pid2) = do
    Nothing -> error $ "Inconsistency! Players inactive when swapping hands."
    Just (p1', p2') -> return $ (replace pid2 p2' . replace pid1 p1') round
    where replace pid p rnd = setActivePlayer rnd pid p
-applyEvent round (Eliminated pid) = adjustPlayer round pid eliminate
+applyEvent round (Eliminated pid) = modifyActivePlayer round pid eliminate
 applyEvent round (ForcedDiscard pid) =
   let (round', card) = drawCard round in
   do
@@ -341,7 +341,7 @@ playTurn round = do
       return $ (nextTurn round'', Played action result)
 
     bustOut pid dealt hand =
-      case adjustPlayer round pid (flip bust dealt) of
+      case modifyActivePlayer round pid (flip bust dealt) of
        Left e -> error $ "Could not bust out player: " ++ (show e)
        Right round' -> (nextTurn (set state Playing round'), BustedOut pid dealt hand)
 
@@ -374,8 +374,10 @@ getWinners (SoleSurvivor pid _) = [pid]
 getWinners (HighestCard _ pids _) = pids
 
 
-adjustPlayer :: Round -> PlayerId -> (Player -> Maybe Player) -> Either BadAction Round
-adjustPlayer rnd pid f =
+-- | Update the given player in Round. If the update function returns Nothing,
+-- then that is taken to mean the player was inactive.
+modifyActivePlayer :: Round -> PlayerId -> (Player -> Maybe Player) -> Either BadAction Round
+modifyActivePlayer rnd pid f =
   case getPlayer rnd pid of
    Nothing -> Left $ NoSuchPlayer pid
    Just player ->
@@ -384,6 +386,8 @@ adjustPlayer rnd pid f =
       Just newP -> Right $ setActivePlayer rnd pid newP
 
 
+-- | Replace the given player in the Round. If the new player is inactive,
+-- then the player is dropped from the cycle of play.
 setActivePlayer :: Round -> PlayerId -> Player -> Round
 setActivePlayer round pid newP =
   case getHand newP of
@@ -397,9 +401,10 @@ setActivePlayer round pid newP =
        Right newOrder -> set playOrder newOrder round'
 
 
+-- | Get the given player, asserting they must be active. Will return a Left
+-- if no player is found or if the requested player is inactive.
 getActivePlayer :: Round -> PlayerId -> Either BadAction Player
 getActivePlayer round pid = fst <$> getActivePlayerHand round pid
-
 
 
 getActivePlayerHand :: Round -> PlayerId -> Either BadAction (Player, Card)
