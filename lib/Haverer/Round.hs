@@ -15,28 +15,29 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE ViewPatterns #-}
 
-module Haverer.Round ( BadAction
-                     , currentPlayer
-                     , currentTurn
-                     , Event(..)
-                     , Result(..)
-                     , getActivePlayers
-                     , getPlayer
-                     , getPlayerMap
-                     , getPlayers
-                     , getWinners
-                     , makeRound
-                     , nextPlayer
-                     , playTurn
-                     , remainingCards
-                     , Round
-                     , Victory(..)
-                     , victory
-                     , prop_allCardsPresent
-                     , prop_burnCardsSame
-                     , prop_multipleActivePlayers
-                     , prop_ringIsActivePlayers
-                     ) where
+module Haverer.Round (
+  BadAction
+  , currentPlayer
+  , currentTurn
+  , Event(..)
+  , Result(..)
+  , getActivePlayers
+  , getPlayer
+  , getPlayerMap
+  , getPlayers
+  , getWinners
+  , makeRound
+  , nextPlayer
+  , playTurn
+  , remainingCards
+  , Round
+  , Victory(..)
+  , victory
+  , prop_allCardsPresent
+  , prop_burnCardsSame
+  , prop_multipleActivePlayers
+  , prop_ringIsActivePlayers
+  ) where
 
 import Prelude hiding (round)
 
