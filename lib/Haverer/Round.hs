@@ -28,14 +28,14 @@ module Haverer.Round ( BadAction
                      , makeRound
                      , nextPlayer
                      , playTurn
-                     , prop_allCardsPresent
-                     , prop_burnCardsSame
-                     , prop_multipleActivePlayers
-                     , prop_ringIsActivePlayers
                      , remainingCards
                      , Round
                      , Victory(..)
                      , victory
+                     , prop_allCardsPresent
+                     , prop_burnCardsSame
+                     , prop_multipleActivePlayers
+                     , prop_ringIsActivePlayers
                      ) where
 
 import Prelude hiding (round)
@@ -149,20 +149,16 @@ currentPlayer rnd =
    Playing -> Just $ (currentItem . view playOrder) rnd
 
 
-currentHand :: Round -> Maybe (Card, Card)
-currentHand rnd = do
-  pid <- currentPlayer rnd
-  hand <- getHand =<< getPlayer rnd pid
-  case view state rnd of
-   Turn dealt -> return (dealt, hand)
-   _ -> Nothing
-
-
 currentTurn :: Round -> Maybe (PlayerId, (Card, Card))
 currentTurn rnd = do
   pid <- currentPlayer rnd
-  cards <- currentHand rnd
-  return (pid, cards)
+  hand <- getHand =<< getPlayer rnd pid
+  d <- dealt
+  return (pid, (d, hand))
+  where
+    dealt = case view state rnd of
+      Turn d -> Just d
+      _ -> Nothing
 
 
 nextPlayer :: Round -> Maybe PlayerId
