@@ -33,6 +33,7 @@ library
   hs-source-dirs: lib
   build-depends: base >=4.7 && <4.8
                , containers
+               , lens >= 4.7
                , random-shuffle
                , MonadRandom
                , pretty-show

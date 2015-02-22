@@ -12,6 +12,8 @@
 -- See the License for the specific language governing permissions and
 -- limitations under the License.
 
+{-# LANGUAGE TemplateHaskell #-}
+
 module Haverer.Player (
   bust,
   Error,
@@ -32,6 +34,7 @@ module Haverer.Player (
   unprotect
   ) where
 
+import Control.Lens hiding (chosen)
 import Data.List (nub, sort)
 
 import Haverer.Deck (Card)
@@ -73,8 +76,9 @@ data Player = Active {
   _hand :: Card,
   _protected :: Bool,
   _discard :: [Card]
-  } | Inactive [Card] deriving (Show, Eq)
+  } | Inactive { _discard :: [Card] } deriving (Show, Eq)
 
+makeLenses ''Player
 
 makePlayer :: Card -> Player
 makePlayer card = Active {
@@ -84,71 +88,54 @@ makePlayer card = Active {
   }
 
 
-operateOn :: (Player -> Player) -> Player -> Maybe Player
-operateOn _ (Inactive _) = Nothing
-operateOn _ player@(Active _ True _) = Just player
-operateOn f player = Just $ f player
+protect :: Player -> Player
+protect = set protected True
 
+unprotect :: Player -> Player
+unprotect = set protected False
 
-protect :: Player -> Maybe Player
-protect = _setProtect True
+eliminate :: Player -> Player
+eliminate player@(Inactive _) = player
+eliminate (Active card _ discards) = Inactive (card:discards)
 
-unprotect :: Player -> Maybe Player
-unprotect = _setProtect False
-
-_setProtect :: Bool -> Player -> Maybe Player
-_setProtect _ (Inactive _) = Nothing
-_setProtect protected player = Just $ player { _protected = protected }
-
-
-
-eliminate :: Player -> Maybe Player
-eliminate = operateOn (\(Active card _ discards) -> Inactive (card:discards))
-
-swapHands :: Player -> Player -> Maybe (Player, Player)
-swapHands p1 p2 =
-  case (p1, p2) of
-   (Active h1 protected _, Active h2 _ _) ->
-     if protected
-     then Just (p1, p2)
-     else Just (p1 { _hand = h2 }, p2 { _hand = h1 })
-   _ -> Nothing
+swapHands :: Player -> Player -> (Player, Player)
+swapHands player1 player2 =
+  case (preview hand player1, preview hand player2) of
+   (Just h1, Just h2) ->
+     (set hand h2 player1, set hand h1 player2)
+   _ -> (player1, player2)
 
 
 -- Will not de-activate player if they discard a Prince.
-discardAndDraw :: Player -> Maybe Card -> Maybe Player
-discardAndDraw (Inactive _) _ = Nothing
-discardAndDraw (Active card False discards) Nothing = Just $ Inactive (card:discards)
-discardAndDraw player@(Active _ True _) _ = Just player
-discardAndDraw (Active card protected discards) (Just newCard) =
-  Just $ Active newCard protected (card:discards)
+discardAndDraw :: Player -> Maybe Card -> Player
+discardAndDraw player@(Inactive _) _ = player
+discardAndDraw (Active card _ discards) Nothing = Inactive (card:discards)
+discardAndDraw (Active card p discards) (Just newCard) =
+  Active newCard p (card:discards)
 
 
--- |Given a dealt and chosen card, update the hand to chosen, and chuck
+-- | Given a dealt and chosen card, update the hand to chosen, and chuck
 -- whatever wasn't played onto the discard pile.
 playCard :: Player -> Card -> Card -> Maybe Player
 playCard (Inactive _) _ _ = Nothing
-playCard (Active hand protected discards) dealt chosen =
-  if hand == chosen
-  then Just $ Active dealt protected (hand:discards)
+playCard (Active h p discards) dealt chosen =
+  if h == chosen
+  then Just $ Active dealt p (h:discards)
   else if dealt == chosen
-       then Just $ Active hand protected (dealt:discards)
+       then Just $ Active h p (dealt:discards)
        else Nothing
 
 
-bust :: Player -> Card -> Maybe Player
-bust (Inactive _) _ = Nothing
-bust (Active hand _ discards) dealt = Just $ Inactive (hand:dealt:discards)
+bust :: Player -> Card -> Player
+bust player@(Inactive _) _ = player
+bust (Active h _ discards) dealt = Inactive (h:dealt:discards)
 
 
 getDiscards :: Player -> [Card]
-getDiscards (Inactive ds) = ds
-getDiscards (Active _ _ ds) = ds
+getDiscards = view discard
 
 getHand :: Player -> Maybe Card
-getHand (Inactive _) = Nothing
-getHand (Active card _ _) = Just card
+getHand = preview hand
 
 isProtected :: Player -> Maybe Bool
-isProtected (Inactive _) = Nothing
-isProtected (Active _ p _) = Just p
+isProtected = preview protected
