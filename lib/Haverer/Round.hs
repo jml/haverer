@@ -236,54 +236,51 @@ data Result =
   deriving (Eq, Show)
 
 
--- XXX: applyAction: Not actually "applying" the action, more just figuring
--- out what the result of performing the play would be. Rename.
-
--- | Given the hand of the current player, the hand of the target (if there is
--- one), and the action being played, return the change we need to make.
-applyAction' :: Card -> Maybe Card -> Action -> Event
-applyAction' _ hand (viewAction -> (_, Soldier, Guess target guess)) =
-  if fromJust hand == guess
-  then Eliminated target
-  else NoChange
-applyAction' _ (Just targetCard) (viewAction -> (pid, Clown, Attack target)) =
-  ForcedReveal pid target targetCard
-applyAction' sourceHand targetHand (viewAction -> (pid, Knight, Attack target)) =
-  case compare sourceHand (fromJust targetHand) of
-    LT -> Eliminated pid
-    EQ -> NoChange
-    GT -> Eliminated target
-applyAction' _ _ (viewAction -> (pid, Priestess, NoEffect)) = Protected pid
-applyAction' _ hand (viewAction -> (_, Wizard, Attack target)) =
-  case hand of
-    Just Prince -> Eliminated target
-    _ -> ForcedDiscard target
-applyAction' _ _ (viewAction -> (pid, General, Attack target)) = SwappedHands target pid
-applyAction' _ _ (viewAction -> (_, Minister, NoEffect)) = NoChange
-applyAction' _ _ (viewAction -> (pid, Prince, NoEffect)) = Eliminated pid
-applyAction' _ _ action = error $ "Invalid action: " ++ (show action)
-
-
 -- | Translate a player action into a change to make to the round.
 -- Will return errors if the action is for or against an inactive or
 -- nonexistent player.
 --
 -- If the target player is protected, will return the identity result,
 -- NoChange.
-applyAction :: Round -> Action -> Either BadAction Event
-applyAction round action@(viewAction -> (pid, _, play)) = do
+actionToEvent :: Round -> Action -> Either BadAction Event
+actionToEvent round action@(viewAction -> (pid, _, play)) = do
   (_, sourceHand) <- getActivePlayerHand round pid
   case getTarget play of
-   Nothing -> return $ applyAction' sourceHand Nothing action
+   Nothing -> return $ actionToEvent' sourceHand Nothing action
    Just target -> do
      (targetPlayer, targetHand) <- getActivePlayerHand round target
      if fromJust (isProtected targetPlayer)
        then return NoChange
-       else return $ applyAction' sourceHand (Just targetHand) action
+       else return $ actionToEvent' sourceHand (Just targetHand) action
+
+
+-- | Given the hand of the current player, the hand of the target (if there is
+-- one), and the action being played, return the change we need to make.
+actionToEvent' :: Card -> Maybe Card -> Action -> Event
+actionToEvent' _ hand (viewAction -> (_, Soldier, Guess target guess)) =
+  if fromJust hand == guess
+  then Eliminated target
+  else NoChange
+actionToEvent' _ (Just targetCard) (viewAction -> (pid, Clown, Attack target)) =
+  ForcedReveal pid target targetCard
+actionToEvent' sourceHand targetHand (viewAction -> (pid, Knight, Attack target)) =
+  case compare sourceHand (fromJust targetHand) of
+    LT -> Eliminated pid
+    EQ -> NoChange
+    GT -> Eliminated target
+actionToEvent' _ _ (viewAction -> (pid, Priestess, NoEffect)) = Protected pid
+actionToEvent' _ hand (viewAction -> (_, Wizard, Attack target)) =
+  case hand of
+    Just Prince -> Eliminated target
+    _ -> ForcedDiscard target
+actionToEvent' _ _ (viewAction -> (pid, General, Attack target)) = SwappedHands target pid
+actionToEvent' _ _ (viewAction -> (_, Minister, NoEffect)) = NoChange
+actionToEvent' _ _ (viewAction -> (pid, Prince, NoEffect)) = Eliminated pid
+actionToEvent' _ _ action = error $ "Invalid action: " ++ (show action)
 
 
 -- XXX: Lots of these re-get players from the Round that have already been
--- retrieved by applyAction. Perhaps we could include that data in the Event
+-- retrieved by actionToEvent. Perhaps we could include that data in the Event
 -- structure so this simply returns a Round.
 
 -- | Apply a change to the Round.
@@ -330,7 +327,7 @@ playTurn round = do
       action <- case playToAction playerId chosen play of
                  Left e -> Left $ InvalidPlay e
                  Right a -> return a
-      result <- applyAction round' action
+      result <- actionToEvent round' action
       round'' <- applyEvent round' result
       return $ (nextTurn round'', Played action result)
 
