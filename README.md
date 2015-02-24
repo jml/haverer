@@ -58,7 +58,7 @@ smiling and nodding while I've rambled on about this project:
 
 * metagnome
 * RAOF
-* idnar
+* @mithrandi
 * pjdelport
 * tomprince
 * radix
