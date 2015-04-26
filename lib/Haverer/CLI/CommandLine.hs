@@ -16,6 +16,7 @@
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
 module Haverer.CLI.CommandLine (
+  ConsoleText(..),
   formatScores,
   pickNumPlayers,
   pickCardToPlay,
@@ -30,7 +31,7 @@ import Text.Read (readMaybe)
 
 import Haverer.Action (Play(..), viewAction)
 import Haverer.Deck (Card(..))
-import Haverer.Player (PlayerId, PlayerSet, getDiscards, isProtected, toPlayers)
+import Haverer.Player (PlayerSet, getDiscards, isProtected, toPlayers)
 import Haverer.Round (
   Event(..),
   Result(..),
@@ -50,15 +51,12 @@ import Haverer.CLI.Prompt (
   )
 
 
+
 instance ConsoleText Card where
   toText = show
 
 
-instance ConsoleText PlayerId where
-  toText = show
-
-
-instance ConsoleText Round where
+instance ConsoleText a => ConsoleText (Round a) where
 
   toText round =
     "Cards remaining: " ++ (show $ remainingCards round) ++ ".\n\n" ++
@@ -74,7 +72,7 @@ instance ConsoleText Round where
          Nothing -> " (eliminated)"
 
 
-instance ConsoleText Result where
+instance (Eq a, ConsoleText a, Show a) => ConsoleText (Result a) where
 
   -- FIXME: Don't have quite enough information here to disambiguate between
   -- Soldier attack failing due to wrong guess and Soldier attack failing due to
@@ -144,7 +142,7 @@ instance ConsoleText Result where
   toText event = "UNKNOWN: " ++ show event
 
 
-instance ConsoleText Victory where
+instance ConsoleText a => ConsoleText (Victory a) where
   toText (SoleSurvivor pid card) =
     toText pid ++ " wins as the only remaining player, holding " ++ toText card
   toText (HighestCard card (winner:[]) _) =
@@ -153,7 +151,7 @@ instance ConsoleText Victory where
     "Many winners holding " ++ toText card ++ ": " ++ (intercalate ", " (map toText winners))
 
 
-formatScores :: [(PlayerId, Int)] -> String
+formatScores :: ConsoleText playerId => [(playerId, Int)] -> String
 formatScores scores =
   underline '-' "Scores" ++ "\n" ++
   unlines (map formatScore scores)
@@ -176,7 +174,7 @@ pickCardToPlay (dealt, hand) =
   chooseItem "\nPlease choose a card: " [dealt, hand]
 
 
-pickPlay :: Card -> PlayerSet -> IO Play
+pickPlay :: ConsoleText playerId => Card -> PlayerSet playerId -> IO (Play playerId)
 pickPlay card players =
   case card of
    Soldier -> pickGuess players
@@ -190,13 +188,13 @@ pickPlay card players =
 
 
 -- XXX: Exclude self-targeting when it's not legal
-pickTarget :: PlayerSet -> IO PlayerId
+pickTarget :: ConsoleText playerId => PlayerSet playerId -> IO playerId
 pickTarget ps = chooseItem "\nPlease choose a target: " (toPlayers ps)
 
-pickAttack :: PlayerSet -> IO Play
+pickAttack :: ConsoleText playerId => PlayerSet playerId -> IO (Play playerId)
 pickAttack players = fmap Attack (pickTarget players)
 
-pickGuess :: PlayerSet -> IO Play
+pickGuess :: ConsoleText playerId => PlayerSet playerId -> IO (Play playerId)
 pickGuess players = do
   target <- pickTarget players
   guess <- pickGuessCard

@@ -27,7 +27,7 @@ import Test.Tasty.QuickCheck
 
 import Haverer.Action (Play(..), bustingHand, getTarget)
 import Haverer.Deck (Card)
-import Haverer.Player (getHand, getDiscards, isProtected, PlayerId)
+import Haverer.Player (getHand, getDiscards, isProtected)
 import Haverer.Round (
   Round
   , Event(NoChange)
@@ -52,14 +52,14 @@ import Utils (isSubListOf)
 -- | It is impossible for the next player to be the current player. That would
 -- mean there's only one person still playing, which would mean that the round
 -- is over.
-prop_nextPlayerNeverCurrentPlayer :: Round -> Bool
+prop_nextPlayerNeverCurrentPlayer :: Round PlayerId -> Bool
 prop_nextPlayerNeverCurrentPlayer round =
   currentPlayer round /= nextPlayer round || currentPlayer round == Nothing
 
 
 -- | The current player is *never* protected. At the start of your turn, any
 -- protection you had expires.
-prop_currentPlayerNeverProtected :: Round -> Bool
+prop_currentPlayerNeverProtected :: Round PlayerId -> Bool
 prop_currentPlayerNeverProtected round =
   case currentPlayer round >>= getPlayer round >>= isProtected of
    Nothing -> True  -- round is over
@@ -69,7 +69,7 @@ prop_currentPlayerNeverProtected round =
 -- | Once inactive, you stay inactive. Takes a list of rounds that are
 -- presumed to be consecutive and shows that each one has a larger list of
 -- inactive players.
-prop_inactivePlayersRemainSo :: [Round] -> Bool
+prop_inactivePlayersRemainSo :: [Round PlayerId] -> Bool
 prop_inactivePlayersRemainSo round =
   let actives = fmap getActivePlayers round in
   and [isSubListOf y x | (x, y) <- zip actives (tail actives)]
@@ -78,7 +78,7 @@ prop_inactivePlayersRemainSo round =
 -- | The given player is "the same" in two consecutive rounds. If the player is the
 -- current player in the second round, then we ignore their 'protected'
 -- status, since no player is ever protected on their first round.
-prop_playerSame :: PlayerId -> Round -> Round -> Bool
+prop_playerSame :: PlayerId -> Round PlayerId -> Round PlayerId -> Bool
 prop_playerSame pid round round' =
   let player = getPlayer round pid
       player' = getPlayer round' pid in
@@ -92,7 +92,7 @@ prop_playerSame pid round round' =
 -- | Attacking a player who is protected always leaves it in the exact same
 -- state when the turn is done. The only thing that might change is that it
 -- might now be the attacked player's turn.
-prop_protectedUnaffected :: Round -> Card -> Play -> Property
+prop_protectedUnaffected :: Round PlayerId -> Card -> Play PlayerId -> Property
 prop_protectedUnaffected round card play =
   let target = getTarget play
       targetPlayer = getPlayer round =<< target
@@ -103,14 +103,14 @@ prop_protectedUnaffected round card play =
     (result == NoChange)
 
 
-roundIsBusted :: Round -> Bool
+roundIsBusted :: Ord a => Round a -> Bool
 roundIsBusted round =
   case currentTurn round of
    Nothing -> False
    Just (_, (c1, c2)) -> bustingHand c1 c2
 
 
-genAttacksOnProtectedPlayers :: Gen (Round, Card, Play)
+genAttacksOnProtectedPlayers :: Gen (Round PlayerId, Card, Play PlayerId)
 genAttacksOnProtectedPlayers = do
   -- XXX: Can I express this without calling attacksOnProtectedPlayers twice?
   round <- randomRound `suchThat` (not . null . attacksOnProtectedPlayers)
@@ -120,7 +120,7 @@ genAttacksOnProtectedPlayers = do
 
 -- | If you've got a busting hand, then no matter what you play, you're going
 -- to lose.
-prop_ministerBustsOut :: Round -> Property
+prop_ministerBustsOut :: Round PlayerId -> Property
 prop_ministerBustsOut round =
   let Just (pid, (dealt, hand)) = currentTurn round in
   bustingHand dealt hand ==>
@@ -132,13 +132,13 @@ prop_ministerBustsOut round =
 suite :: TestTree
 suite = testGroup "Haverer.Round" [
   testGroup "QuickCheck tests"
-  [ testProperty "allCardsPresent" prop_allCardsPresent
+  [ testProperty "allCardsPresent" (prop_allCardsPresent :: Round PlayerId -> Bool)
   , testProperty "allCardsPresent after many moves" $
     forAll randomRounds $ all prop_allCardsPresent
   , testProperty "next player is not current player" prop_nextPlayerNeverCurrentPlayer
   , testProperty "next player is not current player after many moves" $
     forAll randomRounds $ all prop_nextPlayerNeverCurrentPlayer
-  , testProperty "ring is active players" $ prop_ringIsActivePlayers
+  , testProperty "ring is active players" $ (prop_ringIsActivePlayers :: Round PlayerId -> Bool)
   , testProperty "ring is active players after move" $
     forAll randomRounds $ all prop_ringIsActivePlayers
   , testProperty "burn card same after move" $

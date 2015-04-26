@@ -1,3 +1,5 @@
+{-# LANGUAGE MultiParamTypeClasses #-}
+
 module Haverer.Engine (
   MonadEngine
   , playGame
@@ -20,38 +22,38 @@ import Haverer.Action (Play)
 import Haverer.Deck (Card)
 import qualified Haverer.Game as Game
 import qualified Haverer.Round as Round
-import Haverer.Player (PlayerId, PlayerSet)
+import Haverer.Player (PlayerSet)
 
 
-class Monad m => MonadEngine m where
+class Monad m => MonadEngine m playerId where
 
-  badPlay :: Round.BadAction -> m ()
+  badPlay :: Round.BadAction playerId -> m ()
   badPlay _ = return ()
 
   -- XXX: We're passing PlayerSet around everywhere just so we can have it
   -- here.
-  choosePlay :: PlayerSet -> PlayerId -> Card -> Card -> m (Card, Play)
+  choosePlay :: PlayerSet playerId -> playerId -> Card -> Card -> m (Card, Play playerId)
 
-  gameStarted :: Game.Game -> m ()
+  gameStarted :: Game.Game playerId -> m ()
   gameStarted _ = return ()
 
-  gameOver :: Game.Outcome -> m ()
+  gameOver :: Game.Outcome playerId -> m ()
   gameOver _ = return ()
 
-  roundStarted :: Game.Game -> Round.Round -> m ()
+  roundStarted :: Game.Game playerId -> Round.Round playerId -> m ()
   roundStarted _ _ = return ()
 
-  roundOver :: Round.Victory -> m ()
+  roundOver :: Round.Victory playerId -> m ()
   roundOver _ = return ()
 
-  handStarted :: Round.Round -> m ()
+  handStarted :: Round.Round playerId -> m ()
   handStarted _ = return ()
 
-  handOver :: Round.Result -> m ()
+  handOver :: Round.Result playerId -> m ()
   handOver _ = return ()
 
 
-playGame :: (Functor m, MonadRandom m, MonadEngine m) => PlayerSet -> m Game.Outcome
+playGame :: (Ord playerId, Show playerId, Functor m, MonadRandom m, MonadEngine m playerId) => PlayerSet playerId -> m (Game.Outcome playerId)
 playGame players = do
   let game = Game.makeGame players
   gameStarted game
@@ -60,7 +62,7 @@ playGame players = do
   return outcome
 
 
-playGame' :: (Functor m, MonadRandom m, MonadEngine m) => Game.Game -> m Game.Outcome
+playGame' :: (Show playerId, Ord playerId, Functor m, MonadRandom m, MonadEngine m playerId) => Game.Game playerId -> m (Game.Outcome playerId)
 playGame' game = do
   round <- Game.newRound game
   roundStarted game round
@@ -71,7 +73,7 @@ playGame' game = do
    Right game' -> playGame' game'
 
 
-playRound :: MonadEngine m => PlayerSet -> Round.Round -> m Round.Victory
+playRound :: (Show playerId, Ord playerId, MonadEngine m playerId) => PlayerSet playerId -> Round.Round playerId -> m (Round.Victory playerId)
 playRound players round = do
   result <- playHand players round
   case result of
@@ -80,7 +82,7 @@ playRound players round = do
    Nothing -> return $ fromJust $ Round.victory round
 
 
-playHand :: MonadEngine m => PlayerSet -> Round.Round -> m (Maybe Round.Round)
+playHand :: (Show playerId, Ord playerId, MonadEngine m playerId) => PlayerSet playerId -> Round.Round playerId -> m (Maybe (Round.Round playerId))
 playHand players r =
   case Round.currentTurn r of
    Nothing -> return Nothing
@@ -91,7 +93,7 @@ playHand players r =
      return $ Just round'
 
 
-getPlay :: MonadEngine m => PlayerSet -> Round.Round -> PlayerId -> Card -> Card -> m (Round.Round, Round.Result)
+getPlay :: (Ord playerId, Show playerId, MonadEngine m playerId) => PlayerSet playerId -> Round.Round playerId -> playerId -> Card -> Card -> m (Round.Round playerId, Round.Result playerId)
 getPlay players round player dealt hand =
   case Round.playTurn round of
    Left (round', event) -> return (round', event)
