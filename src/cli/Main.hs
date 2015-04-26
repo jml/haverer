@@ -12,6 +12,7 @@
 -- See the License for the specific language governing permissions and
 -- limitations under the License.
 
+{-# LANGUAGE MultiParamTypeClasses #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
 
@@ -21,28 +22,37 @@ import Data.List (intercalate)
 
 import qualified Haverer.Engine as E
 import qualified Haverer.Game as Game
-import Haverer.Player (makePlayerSet)
+import Haverer.Player (toPlayerSet)
 
 import Haverer.CLI.CommandLine (
+  ConsoleText(..),
   formatScores,
   pickNumPlayers,
   pickCardToPlay,
   pickPlay,
   )
-import Haverer.CLI.Prompt (underline, toText)
+import Haverer.CLI.Prompt (underline)
 
 
 main :: IO ()
 main = do
   result <- pickNumPlayers
-  players <- case makePlayerSet result of
-        Just set -> return set
-        Nothing -> fail $ "Couldn't make set for " ++ (show result) ++ " players"
+  players <-
+    case makePlayerSet result of
+     Right set -> return set
+     Left e -> fail $ "Couldn't make set for " ++ (show result) ++ " players: " ++ (show e)
 
   E.playGame players >> return ()
+  where makePlayerSet n = toPlayerSet $ take n $ map PlayerId [1..]
 
 
-instance E.MonadEngine IO where
+newtype PlayerId = PlayerId Int deriving (Show, Eq, Ord)
+
+instance ConsoleText PlayerId where
+  toText (PlayerId i) = "Player #" ++ show i
+
+
+instance E.MonadEngine IO PlayerId where
 
   badPlay e = putStrLn $ "ERROR: " ++ (show e)
 

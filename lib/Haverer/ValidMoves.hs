@@ -10,7 +10,7 @@ import Prelude hiding (round)
 
 import Haverer.Action (bustingHand, getTarget, getValidPlays, Play)
 import Haverer.Deck (Card)
-import Haverer.Player (isProtected, PlayerId)
+import Haverer.Player (isProtected)
 import Haverer.Round (
   Round,
   currentTurn,
@@ -19,7 +19,7 @@ import Haverer.Round (
   )
 
 
-getValidMoves :: Round -> [(Card, Play)]
+getValidMoves :: Ord playerId => Round playerId -> [(Card, Play playerId)]
 getValidMoves round =
   case currentTurn round of
    Nothing -> []
@@ -31,16 +31,16 @@ getValidMoves round =
      where otherPlayers = delete pid $ getActivePlayers round
 
 
-protectedPlayers :: Round -> [PlayerId]
+protectedPlayers :: Ord playerId => Round playerId -> [playerId]
 protectedPlayers round =
   filter (\p -> Just True == (isProtected =<< getPlayer round p)) $ getActivePlayers round
 
 
-movesThatTargetPlayer :: Round -> PlayerId -> [(Card, Play)]
+movesThatTargetPlayer :: Ord playerId => Round playerId -> playerId -> [(Card, Play playerId)]
 movesThatTargetPlayer round target =
   filter ((== Just target) . getTarget . snd)  (getValidMoves round)
 
 
-attacksOnProtectedPlayers :: Round -> [(Card, Play)]
+attacksOnProtectedPlayers :: Ord playerId => Round playerId -> [(Card, Play playerId)]
 attacksOnProtectedPlayers round =
   [(card, play) | p <- protectedPlayers round, (card, play) <- movesThatTargetPlayer round p]

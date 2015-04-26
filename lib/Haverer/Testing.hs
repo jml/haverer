@@ -13,7 +13,7 @@ import Test.Tasty.QuickCheck
 
 import Haverer.Action (Play(..))
 import Haverer.Deck (baseCards, Card(..), Complete, Deck, makeDeck)
-import Haverer.Player (makePlayerSet, PlayerSet)
+import Haverer.Player (PlayerSet, toPlayerSet)
 import Haverer.Round (
   Round
   , Result(..)
@@ -24,17 +24,26 @@ import Haverer.ValidMoves (getValidMoves)
 
 
 
+type PlayerId = Int
+
+
 instance Arbitrary (Deck Complete) where
   -- | An arbitrary complete deck is a shuffled set of cards.
   arbitrary = fmap (fromJust . makeDeck) (shuffled baseCards)
 
 
-instance Arbitrary PlayerSet where
+instance Arbitrary (PlayerSet PlayerId) where
   -- | Start the game with a random number of players.
-  arbitrary = fmap (fromJust . makePlayerSet) (elements [2, 3, 4])
+  arbitrary =
+    makePlayerSet <$> (elements [2, 3, 4])
+    where
+      makePlayerSet n =
+        case toPlayerSet $ take n [1..] of
+         Left e -> error $ "Couldn't make set: " ++ show e
+         Right s -> s
 
 
-instance Arbitrary Round where
+instance Arbitrary (Round PlayerId) where
   -- | A fresh, unplayed round with an arbitrary number of players and a
   -- shuffled deck.
   arbitrary = makeRound <$> arbitrary <*> arbitrary
@@ -42,7 +51,7 @@ instance Arbitrary Round where
 
 -- | For a Round and a known-good Card and Play, play the cards and return the
 -- round and event. If the hand busts out, Card and Play are ignored.
-playTurn' :: Round -> Card -> Play -> (Round, Result)
+playTurn' :: (Ord a, Show a) => Round a -> Card -> Play a -> (Round a, Result a)
 playTurn' round card play =
   case playTurn round of
    Left (round', event) -> (round', event)
@@ -52,7 +61,7 @@ playTurn' round card play =
       Right (round', event) -> (round', event)
 
 
-playRandomTurn :: Round -> Gen (Round, Result)
+playRandomTurn :: (Ord a, Show a) => Round a -> Gen (Round a, Result a)
 playRandomTurn round = do
   move <- randomCardPlay round
   case move of
@@ -68,12 +77,12 @@ playRandomTurn round = do
 -- | Given a Round, generate a Round that's randomly had a move applied, i.e.
 -- a possible next Round. If there are no valid moves, then return the same
 -- Round.
-randomNextMove :: Round -> Gen Round
+randomNextMove :: (Ord a, Show a) => Round a -> Gen (Round a)
 randomNextMove round = fst <$> playRandomTurn round
 
 
 -- | Generate a sequence of N rounds, starting from an initial round.
-manyMoves :: Int -> Gen [Round]
+manyMoves :: Int -> Gen [Round PlayerId]
 manyMoves 0 = return []
 manyMoves n = do
   initial <- arbitrary
@@ -82,19 +91,19 @@ manyMoves n = do
 
 
 -- | Generate a random number of consecutive rounds, starting from an initial round.
-randomRounds :: Gen [Round]
+randomRounds :: Gen [Round PlayerId]
 randomRounds = do
   num <- choose (2, 14)
   manyMoves num
 
 
 -- | Generate a random round that might come up in the course of play.
-randomRound :: Gen Round
+randomRound :: Gen (Round PlayerId)
 randomRound = last <$> randomRounds
 
 
 -- | Generate a random, non-terminating round and a valid play for that round.
-roundAndPlay :: Gen (Round, Card, Play)
+roundAndPlay :: Gen (Round PlayerId, Card, Play PlayerId)
 roundAndPlay = do
   round <- randomRound `suchThat` (not . null . getValidMoves)
   (card, play) <- elements $ getValidMoves round
@@ -102,7 +111,7 @@ roundAndPlay = do
 
 
 -- | Generate an event that might come up in the course of play.
-inRoundEvent :: Gen Result
+inRoundEvent :: Gen (Result PlayerId)
 inRoundEvent = do
   (round, card, play) <- roundAndPlay
   return $ snd $ playTurn' round card play

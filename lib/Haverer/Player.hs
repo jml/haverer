@@ -22,15 +22,14 @@ module Haverer.Player (
   getDiscards,
   getHand,
   isProtected,
-  makePlayerSet,
   makePlayer,
   Player,
-  PlayerId,
   PlayerSet,
   playCard,
   protect,
   swapHands,
   toPlayers,
+  toPlayerSet,
   unprotect
   ) where
 
@@ -40,22 +39,13 @@ import Data.List (nub, sort)
 import Haverer.Deck (Card)
 
 
-newtype PlayerId = PlayerId Int deriving (Eq, Ord, Show)
-
-players :: [PlayerId]
-players = map PlayerId [1..]
+data Error = InvalidNumPlayers Int | DuplicatePlayers deriving (Show)
 
 
-data Error = InvalidNumPlayers Int | DuplicatePlayers
+newtype PlayerSet a = PlayerSet { toPlayers :: [a] } deriving (Show)
 
 
-newtype PlayerSet = PlayerSet [PlayerId] deriving (Show)
-
-
-toPlayers :: PlayerSet -> [PlayerId]
-toPlayers (PlayerSet xs) = xs
-
-toPlayerSet :: [PlayerId] -> Either Error PlayerSet
+toPlayerSet :: Ord a => [a] -> Either Error (PlayerSet a)
 toPlayerSet playerIds =
   if playerIds /= (nub . sort) playerIds
   then Left DuplicatePlayers
@@ -63,13 +53,6 @@ toPlayerSet playerIds =
             then Left (InvalidNumPlayers numPlayers)
             else (Right . PlayerSet) playerIds
   where numPlayers = length playerIds
-
-
-makePlayerSet :: Int -> Maybe PlayerSet
-makePlayerSet n =
-  case toPlayerSet (take n players) of
-   Left _ -> Nothing
-   Right playerIds -> Just playerIds
 
 
 data Player = Active {
