@@ -13,7 +13,7 @@ import Test.Tasty.QuickCheck
 
 import Haverer.Action (Play(..))
 import Haverer.Deck (baseCards, Card(..), Complete, Deck, makeDeck)
-import Haverer.Player (makePlayerSet, PlayerSet)
+import Haverer.Player (PlayerSet, toPlayerSet)
 import Haverer.Round (
   Round
   , Result(..)
@@ -34,7 +34,13 @@ instance Arbitrary (Deck Complete) where
 
 instance Arbitrary (PlayerSet PlayerId) where
   -- | Start the game with a random number of players.
-  arbitrary = fmap (fromJust . makePlayerSet) (elements [2, 3, 4])
+  arbitrary =
+    makePlayerSet <$> (elements [2, 3, 4])
+    where
+      makePlayerSet n =
+        case toPlayerSet $ take n [1..] of
+         Left e -> error $ "Couldn't make set: " ++ show e
+         Right s -> s
 
 
 instance Arbitrary (Round PlayerId) where

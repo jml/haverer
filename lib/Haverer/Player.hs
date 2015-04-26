@@ -22,7 +22,6 @@ module Haverer.Player (
   getDiscards,
   getHand,
   isProtected,
-  makePlayerSet,
   makePlayer,
   Player,
   PlayerSet,
@@ -54,13 +53,6 @@ toPlayerSet playerIds =
             then Left (InvalidNumPlayers numPlayers)
             else (Right . PlayerSet) playerIds
   where numPlayers = length playerIds
-
-
-makePlayerSet :: Int -> Maybe (PlayerSet Int)
-makePlayerSet n =
-  case toPlayerSet (take n [1..]) of
-   Left _ -> Nothing
-   Right playerIds -> Just playerIds
 
 
 data Player = Active {
