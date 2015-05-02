@@ -15,6 +15,7 @@
 import Test.Tasty
 
 import qualified CLI
+import qualified Player
 import qualified Ring
 import qualified Round
 
@@ -23,6 +24,7 @@ suite :: TestTree
 suite =
   testGroup "Test Suite" [
     CLI.suite
+    , Player.suite
     , Ring.suite
     , Round.suite
     ]

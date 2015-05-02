@@ -16,7 +16,7 @@
 
 module Haverer.Player (
   bust,
-  Error,
+  Error(..),
   discardAndDraw,
   eliminate,
   getDiscards,
@@ -39,16 +39,16 @@ import Data.List (nub, sort)
 import Haverer.Deck (Card)
 
 
-data Error = InvalidNumPlayers Int | DuplicatePlayers deriving (Show)
+data Error a = InvalidNumPlayers Int | DuplicatePlayers [a] deriving (Show, Eq)
 
 
-newtype PlayerSet a = PlayerSet { toPlayers :: [a] } deriving (Show)
+newtype PlayerSet a = PlayerSet { toPlayers :: [a] } deriving (Show, Eq)
 
 
-toPlayerSet :: Ord a => [a] -> Either Error (PlayerSet a)
+toPlayerSet :: Ord a => [a] -> Either (Error a) (PlayerSet a)
 toPlayerSet playerIds =
-  if playerIds /= (nub . sort) playerIds
-  then Left DuplicatePlayers
+  if numPlayers /= (length . nub . sort) playerIds
+  then Left (DuplicatePlayers playerIds)
        else if numPlayers < 2 || numPlayers > 4
             then Left (InvalidNumPlayers numPlayers)
             else (Right . PlayerSet) playerIds
