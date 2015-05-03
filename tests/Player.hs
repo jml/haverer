@@ -62,7 +62,7 @@ suite = testGroup "Haverer.Player" [
   [ testProperty "one player maketh not a set" $
     forAll (vector 1) $ \x -> toPlayerSet (x :: [Int]) == Left (InvalidNumPlayers 1)
   , testProperty "more than four players can't play" $
-    forAll (choose (5, 1000) >>= uniqueVector) $
+    forAll (choose (5, 100) >>= uniqueVector) $
     \x -> toPlayerSet (x :: [Int]) == Left (InvalidNumPlayers (length x))
   , testProperty "can't play with duplicates" $
     forAll (choose (2, 4) >>= vectorWithDuplicates) $
