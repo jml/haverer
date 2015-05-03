@@ -8,7 +8,7 @@ import Prelude hiding (round)
 import Control.Applicative ((<*>), (<$>))
 import Data.Maybe (fromJust)
 
-import System.Random.Shuffle (shuffle)
+import qualified System.Random.Shuffle as Shuffle
 import Test.Tasty.QuickCheck
 
 import Haverer.Action (Play(..))
@@ -121,7 +121,7 @@ inRoundEvent = do
 shuffled ::[a] -> Gen [a]
 shuffled xs = do
   rs <- randomOrdering (length xs - 1)
-  return $ shuffle xs rs
+  return $ Shuffle.shuffle xs rs
   where
     -- a sequence (r1,...r[n-1]) of numbers such that r[i] is an independent
     -- sample from a uniform random distribution [0..n-i]
