@@ -55,7 +55,7 @@ import Control.Lens hiding (chosen)
 
 import Data.Function (on)
 import Data.List (groupBy, sortBy)
-import Data.Maybe (fromJust, isJust, maybeToList)
+import Data.Maybe (fromJust, isJust, mapMaybe, maybeToList)
 import qualified Data.Map as Map
 
 import Haverer.Action (
@@ -151,7 +151,7 @@ getPlayerMap = view players
 
 -- | Get the player with the given ID. Nothing if there is no such player.
 getPlayer :: Ord playerId => Round playerId -> playerId -> Maybe Player
-getPlayer round pid = (view (players . at pid) round)
+getPlayer round pid = view (players . at pid) round
 
 
 -- | Draw a card from the top of the Deck. Returns the card and a new Round.
@@ -188,7 +188,7 @@ nextPlayer :: Round playerId -> Maybe playerId
 nextPlayer rnd =
   case view state rnd of
    Over -> Nothing
-   NotStarted -> Just $ (currentItem playOrder')
+   NotStarted -> Just $ currentItem playOrder'
    Turn _ -> Just $ nextItem playOrder'
    Playing -> Just $ nextItem playOrder'
   where playOrder' = view playOrder rnd
@@ -212,7 +212,7 @@ nextTurn round =
       Left _ -> set state Over round
       Right newPlayOrder ->
         case modifyActivePlayer round' pid unprotect of
-         Left e -> error $ "Couldn't unprotect current player: " ++ (show e)
+         Left e -> error $ "Couldn't unprotect current player: " ++ show e
          Right round'' -> set playOrder newPlayOrder round''
 
 
@@ -299,7 +299,7 @@ actionToEvent' _ hand (viewAction -> (_, Wizard, Attack target)) =
 actionToEvent' _ _ (viewAction -> (pid, General, Attack target)) = SwappedHands target pid
 actionToEvent' _ _ (viewAction -> (_, Minister, NoEffect)) = NoChange
 actionToEvent' _ _ (viewAction -> (pid, Prince, NoEffect)) = Eliminated pid
-actionToEvent' _ _ action = error $ "Invalid action: " ++ (show action)
+actionToEvent' _ _ action = error $ "Invalid action: " ++ show action
 
 
 -- XXX: Lots of these re-get players from the Round that have already been
@@ -319,8 +319,8 @@ applyEvent round (SwappedHands pid1 pid2) = do
 applyEvent round (Eliminated pid) = modifyActivePlayer round pid eliminate
 applyEvent round (ForcedDiscard pid) =
   let (round', card) = drawCard round in
-  modifyActivePlayer round' pid (flip discardAndDraw card)
-applyEvent round (ForcedReveal _ _ _) = return round
+  modifyActivePlayer round' pid (`discardAndDraw` card)
+applyEvent round (ForcedReveal {}) = return round
 
 
 maybeToEither :: e -> Maybe a -> Either e a
@@ -348,11 +348,11 @@ playTurn :: (Ord playerId, Show playerId)
                        -> Either (BadAction playerId)
                                  (Round playerId, Result playerId))
 playTurn round = do
-  (playerId, (dealt, hand)) <- case (currentTurn round) of
-                                Nothing -> Left $ (round, RoundOver)
+  (playerId, (dealt, hand)) <- case currentTurn round of
+                                Nothing -> Left (round, RoundOver)
                                 Just r -> return r
   player <- case getActivePlayer round playerId of
-             Left e -> error $ "Current player is not active: " ++ (show e)
+             Left e -> error $ "Current player is not active: " ++ show e
              Right r -> return r
   -- The card the player chose is now put in front of them, and the card they
   -- didn't chose is now their hand.
@@ -370,11 +370,11 @@ playTurn round = do
                  Right a -> return a
       result <- actionToEvent round' action
       round'' <- applyEvent round' result
-      return $ (nextTurn round'', Played action result)
+      return (nextTurn round'', Played action result)
 
     bustOut pid dealt hand =
-      case modifyActivePlayer round pid (flip bust dealt) of
-       Left e -> error $ "Could not bust out player: " ++ (show e)
+      case modifyActivePlayer round pid (`bust` dealt) of
+       Left e -> error $ "Could not bust out player: " ++ show e
        Right round' -> (nextTurn (set state Playing round'), BustedOut pid dealt hand)
 
 
@@ -395,7 +395,7 @@ survivors = Map.toList . Map.mapMaybe getHand . view players
 victory :: Round playerId -> Maybe (Victory playerId)
 victory (round@Round { _state = Over }) =
   case survivors round of
-   (pid, card):[] -> Just $ SoleSurvivor pid card
+   [(pid, card)] -> Just $ SoleSurvivor pid card
    xs -> let (best:rest) = reverse (groupBy ((==) `on` snd) (sortBy (compare `on` snd) xs))
          in Just $ HighestCard (snd $ head best) (map fst best) (concat rest)
 victory _ = Nothing
@@ -420,7 +420,7 @@ setActivePlayer round pid newP =
    Nothing -> dropPlayer pid
    Just _ -> round'
   where
-    round' = over players (\x -> set (at pid) (Just newP) x) round
+    round' = over players (set (at pid) (Just newP)) round
     dropPlayer p =
       case dropItem1 (view playOrder round') p of
        Left _ -> set state Over round
@@ -451,7 +451,7 @@ prop_allCardsPresent =
           _burn rnd : (
             (Deck.toList . view stack) rnd
             ++ (concatMap getDiscards . Map.elems . view players) rnd
-            ++ (concatMap (maybeToList . getHand) . Map.elems . view players) rnd)
+            ++ (mapMaybe getHand . Map.elems . view players) rnd)
             ++ (
             case _state rnd of
               Turn x -> [x]
@@ -473,4 +473,4 @@ prop_multipleActivePlayers :: Round playerId -> Bool
 prop_multipleActivePlayers r =
   case view state r of
    Over -> True
-   _ -> (Ring.ringSize $ view playOrder r) > 1
+   _ -> Ring.ringSize (view playOrder r) > 1

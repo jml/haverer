@@ -35,7 +35,7 @@ data Ring a = Ring {
 
 makeRing :: [a] -> Maybe (Ring a)
 makeRing [] = Nothing
-makeRing xs = Just $ Ring {
+makeRing xs = Just Ring {
   _items = xs,
   _current = 0,
   _length = length xs
@@ -47,7 +47,7 @@ toList = _items
 
 advanceBy :: Int -> Ring a -> Ring a
 advanceBy n ring = ring {
-  _current = (_current ring + n) `mod` (_length ring)
+  _current = (_current ring + n) `mod` _length ring
   }
 
 advance :: Ring a -> Ring a
@@ -56,14 +56,14 @@ advance = advanceBy 1
 advance1 :: Ring a -> Either a (Ring a)
 advance1 ring =
   case _items ring of
-   x:[] -> Left x
+   [x] -> Left x
    _ -> Right $ advance ring
 
 dropItem :: (Eq a) => Ring a -> a -> Maybe (Ring a)
 dropItem ring item =
   case span (/=item) (_items ring) of
-   (_, []) -> Just $ ring
-   ([], _:[]) -> Nothing
+   (_, []) -> Just ring
+   ([], [_]) -> Nothing
    (pre, _:xs) ->
      let newLength = _length ring - 1
          current = _current ring

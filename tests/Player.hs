@@ -32,7 +32,7 @@ instance (Ord a, Arbitrary a) => Arbitrary (Set.Set a) where
 
 
 sizedSet :: (Arbitrary a, Ord a) => Int -> Gen (Set.Set a)
-sizedSet 0 = return $ Set.empty
+sizedSet 0 = return Set.empty
 sizedSet n = do
   smaller <- sizedSet (n - 1)
   x <- arbitrary `suchThat` \y -> y `Set.notMember` smaller

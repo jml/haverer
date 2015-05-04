@@ -29,7 +29,7 @@ import qualified Data.Map as Map
 data Counter k a = Counter { _uncounter :: Map.Map k a } deriving Show
 
 incrementMany :: (Ord k, Num a, Foldable.Foldable m) => Counter k a -> m k -> Counter k a
-incrementMany counter keys = Foldable.foldl increment counter keys
+incrementMany = Foldable.foldl increment
 
 increment :: (Ord k, Num a) => Counter k a -> k -> Counter k a
 increment (Counter m) key =

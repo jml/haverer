@@ -20,15 +20,10 @@ module Utils (
 import Data.List (delete, sort)
 
 
-
-
 isSubListOf :: (Eq a, Ord a) => [a] -> [a] -> Bool
 isSubListOf xs ys = isSubListOf' (sort xs) (sort ys)
 
 isSubListOf' :: Eq a => [a] -> [a] -> Bool
 isSubListOf' (_:_) []  = False
 isSubListOf' [] _      = True
-isSubListOf' (x:xs) ys =
-  if x `elem` ys
-  then isSubListOf' xs (delete x ys)
-  else False
+isSubListOf' (x:xs) ys = (x `elem` ys) && isSubListOf' xs (delete x ys)

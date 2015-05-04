@@ -33,7 +33,7 @@ instance ConsoleText Int where
 
 
 underline :: Char -> String -> String
-underline char string = string ++ '\n':take (length string) (repeat char)
+underline char string = string ++ '\n':replicate (length string) char
 
 
 prompt :: ConsoleText e => String -> (String -> Either e a) -> IO (Either e a)
@@ -59,7 +59,7 @@ at xs i = if 0 <= i && i < length xs then Just (xs !! i) else Nothing
 
 
 chooseItem :: ConsoleText a => String -> [a] -> IO a
-chooseItem promptStr items = chooseItem' promptStr 1 items
+chooseItem promptStr = chooseItem' promptStr 1
 
 -- XXX: Crazier: Allow specifying generic Idx
 chooseItem' :: ConsoleText a => String -> Int -> [a] -> IO a

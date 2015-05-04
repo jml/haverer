@@ -18,6 +18,7 @@
 
 import Prelude hiding (round)
 
+import Control.Monad (void)
 import Data.List (intercalate)
 
 import qualified Haverer.Engine as E
@@ -40,9 +41,9 @@ main = do
   players <-
     case makePlayerSet result of
      Right set -> return set
-     Left e -> fail $ "Couldn't make set for " ++ (show result) ++ " players: " ++ (show e)
+     Left e -> fail $ "Couldn't make set for " ++ show result ++ " players: " ++ show e
 
-  E.playGame players >> return ()
+  void $ E.playGame players
   where makePlayerSet n = toPlayerSet $ take n $ map PlayerId [1..]
 
 
@@ -54,7 +55,7 @@ instance ConsoleText PlayerId where
 
 instance E.MonadEngine IO PlayerId where
 
-  badPlay e = putStrLn $ "ERROR: " ++ (show e)
+  badPlay e = putStrLn $ "ERROR: " ++ show e
 
   choosePlay players _ dealt hand = do
       card <- pickCardToPlay (dealt, hand)
@@ -64,17 +65,16 @@ instance E.MonadEngine IO PlayerId where
 
   handStarted = putStrLn . toText
 
-  handOver event = do
-     putStrLn $ "\n" ++ (toText event) ++ "\n"
+  handOver event = putStrLn $ "\n" ++ toText event ++ "\n"
 
   gameStarted _ = do
     putStrLn $ underline '=' "GAME BEGIN"
     putStrLn ""
 
   gameOver outcome = do
-    putStrLn $ "GAME OVER"
+    putStrLn "GAME OVER"
     case Game.winners outcome of
-     (x:[]) -> putStrLn $ "The winner is: " ++ toText x ++ "!"
+     [x] -> putStrLn $ "The winner is: " ++ toText x ++ "!"
      xs -> putStrLn $ "The winners are: " ++ intercalate ", " (map toText xs) ++ "!"
     putStrLn $ formatScores $ Game.finalScores outcome
 
@@ -84,6 +84,6 @@ instance E.MonadEngine IO PlayerId where
     putStrLn ""
 
   roundOver v = do
-    putStrLn $ "ROUND OVER"
+    putStrLn "ROUND OVER"
     putStrLn $ toText v
     putStrLn ""

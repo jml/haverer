@@ -46,13 +46,12 @@ newtype PlayerSet a = PlayerSet { toPlayers :: [a] } deriving (Show, Eq)
 
 
 toPlayerSet :: Ord a => [a] -> Either (Error a) (PlayerSet a)
-toPlayerSet playerIds =
-  if numPlayers /= (length . nub . sort) playerIds
-  then Left (DuplicatePlayers playerIds)
-       else if numPlayers < 2 || numPlayers > 4
-            then Left (InvalidNumPlayers numPlayers)
-            else (Right . PlayerSet) playerIds
+toPlayerSet playerIds
+  | numPlayers /= numDistinctPlayers = Left (DuplicatePlayers playerIds)
+  | numPlayers < 2 || numPlayers > 4 = Left (InvalidNumPlayers numPlayers)
+  | otherwise = (Right . PlayerSet) playerIds
   where numPlayers = length playerIds
+        numDistinctPlayers = (length . nub . sort) playerIds
 
 
 data Player = Active {
@@ -101,12 +100,10 @@ discardAndDraw (Active card p discards) (Just newCard) =
 -- whatever wasn't played onto the discard pile.
 playCard :: Player -> Card -> Card -> Maybe Player
 playCard (Inactive _) _ _ = Nothing
-playCard (Active h p discards) dealt chosen =
-  if h == chosen
-  then Just $ Active dealt p (h:discards)
-  else if dealt == chosen
-       then Just $ Active h p (dealt:discards)
-       else Nothing
+playCard (Active hand' p discards) dealt chosen
+  | hand' == chosen = Just $ Active dealt p (hand':discards)
+  | dealt == chosen = Just $ Active hand' p (dealt:discards)
+  | otherwise = Nothing
 
 
 bust :: Player -> Card -> Player

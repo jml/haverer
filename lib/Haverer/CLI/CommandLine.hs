@@ -59,7 +59,7 @@ instance ConsoleText Card where
 instance ConsoleText a => ConsoleText (Round a) where
 
   toText round =
-    "Cards remaining: " ++ (show $ remainingCards round) ++ ".\n\n" ++
+    "Cards remaining: " ++ show (remainingCards round) ++ ".\n\n" ++
     underline '-' "All discards" ++ "\n" ++
     Map.foldrWithKey (\k a b -> formatPlayer k a ++ "\n" ++ b) "" (getPlayerMap round)
     where
@@ -145,10 +145,10 @@ instance (Eq a, ConsoleText a, Show a) => ConsoleText (Result a) where
 instance ConsoleText a => ConsoleText (Victory a) where
   toText (SoleSurvivor pid card) =
     toText pid ++ " wins as the only remaining player, holding " ++ toText card
-  toText (HighestCard card (winner:[]) _) =
+  toText (HighestCard card [winner] _) =
     toText winner ++ " wins holding " ++ toText card
   toText (HighestCard card winners _) =
-    "Many winners holding " ++ toText card ++ ": " ++ (intercalate ", " (map toText winners))
+    "Many winners holding " ++ toText card ++ ": " ++ intercalate ", " (map toText winners)
 
 
 formatScores :: ConsoleText playerId => [(playerId, Int)] -> String

@@ -20,7 +20,7 @@ module Round where
 import Prelude hiding (round)
 
 import Control.Applicative ((<$>))
-import Data.Maybe (fromJust)
+import Data.Maybe (fromJust, isNothing)
 
 import Test.Tasty
 import Test.Tasty.QuickCheck
@@ -54,7 +54,7 @@ import Utils (isSubListOf)
 -- is over.
 prop_nextPlayerNeverCurrentPlayer :: Round PlayerId -> Bool
 prop_nextPlayerNeverCurrentPlayer round =
-  currentPlayer round /= nextPlayer round || currentPlayer round == Nothing
+  currentPlayer round /= nextPlayer round || isNothing (currentPlayer round)
 
 
 -- | The current player is *never* protected. At the start of your turn, any
@@ -125,7 +125,7 @@ prop_ministerBustsOut round =
   let Just (pid, (dealt, hand)) = currentTurn round in
   bustingHand dealt hand ==>
   let Left (round', event) = playTurn round in
-   not (pid `elem` getActivePlayers round') &&
+   pid `notElem` getActivePlayers round' &&
    event == BustedOut pid dealt hand
 
 
@@ -138,20 +138,20 @@ suite = testGroup "Haverer.Round" [
   , testProperty "next player is not current player" prop_nextPlayerNeverCurrentPlayer
   , testProperty "next player is not current player after many moves" $
     forAll randomRounds $ all prop_nextPlayerNeverCurrentPlayer
-  , testProperty "ring is active players" $ (prop_ringIsActivePlayers :: Round PlayerId -> Bool)
+  , testProperty "ring is active players" (prop_ringIsActivePlayers :: Round PlayerId -> Bool)
   , testProperty "ring is active players after move" $
     forAll randomRounds $ all prop_ringIsActivePlayers
   , testProperty "burn card same after move" $
-    forAll randomRounds $ prop_burnCardsSame
+    forAll randomRounds prop_burnCardsSame
   , testProperty "multiple active players or over after many moves" $
     forAll randomRounds $ all prop_multipleActivePlayers
   , testProperty "once deactivated stay that way" $
-    forAll randomRounds $ prop_inactivePlayersRemainSo
+    forAll randomRounds prop_inactivePlayersRemainSo
   , testProperty "never protected on your turn" $
     forAll randomRounds $ all prop_currentPlayerNeverProtected
   , testProperty "attacks on protected never succeed" $
     forAll genAttacksOnProtectedPlayers $ \(r, c, p) -> prop_protectedUnaffected r c p
   , testProperty "minister + high card deactivates player" $
-    forAll (randomRound `suchThat` roundIsBusted) $ prop_ministerBustsOut
+    forAll (randomRound `suchThat` roundIsBusted) prop_ministerBustsOut
   ]
  ]

@@ -35,7 +35,7 @@ instance Arbitrary (Deck Complete) where
 instance Arbitrary (PlayerSet PlayerId) where
   -- | Start the game with a random number of players.
   arbitrary =
-    makePlayerSet <$> (elements [2, 3, 4])
+    makePlayerSet <$> elements [2, 3, 4]
     where
       makePlayerSet n =
         case toPlayerSet $ take n [1..] of

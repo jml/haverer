@@ -57,7 +57,7 @@ data Outcome playerId = Outcome { _unoutcome :: PlayerScores playerId } deriving
 makeGame :: Ord playerId => PlayerSet playerId -> Game playerId
 makeGame ps = Game {
   _winningScore = 4, -- XXX: in some rule sets, this varies based on the number of players
-  _players = (Counter.initialize $ toPlayers ps),
+  _players = Counter.initialize $ toPlayers ps,
   _playerSet = ps,
   _roundsPlayed = 0
   }
@@ -73,9 +73,9 @@ newRound game = newRound' game <$> newDeck
 -- | Indicate that the specified players won.
 playersWon :: Ord playerId => Game playerId -> [playerId] -> Either (Outcome playerId) (Game playerId)
 playersWon game ps =
-  bumpRoundsPlayed <$> onCounter game (flip Counter.incrementMany ps)
+  bumpRoundsPlayed <$> onCounter game (`Counter.incrementMany` ps)
   where
-    bumpRoundsPlayed g = g { _roundsPlayed = (_roundsPlayed g) + 1 }
+    bumpRoundsPlayed g = g { _roundsPlayed = _roundsPlayed g + 1 }
 
 -- | Return the number of rounds played.
 roundsPlayed :: Game playerId -> Int

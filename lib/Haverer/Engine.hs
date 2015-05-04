@@ -77,8 +77,7 @@ playRound :: (Show playerId, Ord playerId, MonadEngine m playerId) => PlayerSet 
 playRound players round = do
   result <- playHand players round
   case result of
-   Just round' -> do
-     playRound players round'
+   Just round' -> playRound players round'
    Nothing -> return $ fromJust $ Round.victory round
 
 

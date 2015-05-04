@@ -20,7 +20,7 @@ import Test.Tasty
 import Test.Tasty.QuickCheck
 
 import Control.Monad (foldM)
-import Data.Maybe (fromJust)
+import Data.Maybe (fromJust, isNothing)
 import Data.List
 
 import Haverer.Internal.Ring
@@ -51,7 +51,7 @@ dropping r x =
 
 -- Dropping the last item in a ring returns Nothing.
 dropLast :: (Eq a) => a -> Bool
-dropLast x = dropItem (fromJust (makeRing [x])) x == Nothing
+dropLast x = isNothing $ dropItem (fromJust (makeRing [x])) x
 
 -- Helper: Is x the only item in ring r?
 isOnlyItem :: Eq a => Ring a -> a -> Bool
@@ -60,7 +60,7 @@ isOnlyItem r x = ringSize r == 1 && currentItem r == x
 -- If we drop every item from a ring, we get Nothing
 dropAllEmpties :: Eq a => Ring a -> Bool
 dropAllEmpties ring =
-  Nothing == foldM dropItem ring (retrieveItems ring)
+  isNothing $ foldM dropItem ring (retrieveItems ring)
 
 -- Dropping the current item will always advance to the next item.
 dropCurrentItem :: Eq a => Ring a -> Property
@@ -71,7 +71,7 @@ dropCurrentItem ring =
 -- Dropping a non-item leaves the ring unchanged
 dropNonItem :: Eq a => a -> Ring a -> Property
 dropNonItem item ring =
-  not (item `elem` retrieveItems ring) ==> dropItem ring item == Just ring
+  (item `notElem` retrieveItems ring) ==> dropItem ring item == Just ring
 
 suite :: TestTree
 suite = testGroup "Haverer.Ring" [
