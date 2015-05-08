@@ -1,16 +1,8 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 
 module Haverer.Engine (
-  MonadEngine
+  MonadEngine(..)
   , playGame
-  , badPlay
-  , choosePlay
-  , gameStarted
-  , gameOver
-  , handStarted
-  , handOver
-  , roundStarted
-  , roundOver
   ) where
 
 import Prelude hiding (round)
