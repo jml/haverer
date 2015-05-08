@@ -50,12 +50,11 @@ module Haverer.Round (
 
 import Prelude hiding (round)
 
-import Control.Applicative ((<$>))
 import Control.Lens hiding (chosen)
 
 import Data.Function (on)
 import Data.List (groupBy, sortBy)
-import Data.Maybe (fromJust, isJust, mapMaybe, maybeToList)
+import Data.Maybe (fromJust, isJust, mapMaybe)
 import qualified Data.Map as Map
 
 import Haverer.Action (

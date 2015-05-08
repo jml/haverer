@@ -19,7 +19,6 @@ module Round where
 
 import Prelude hiding (round)
 
-import Control.Applicative ((<$>))
 import Data.Maybe (fromJust, isNothing)
 
 import Test.Tasty

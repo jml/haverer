@@ -16,7 +16,6 @@
 
 module Player (suite) where
 
-import Control.Applicative ((<$>))
 import qualified Data.Set as Set
 
 import Haverer.Player (toPlayerSet, toPlayers, Error(..))

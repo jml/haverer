@@ -5,7 +5,6 @@ module Haverer.Testing where
 
 import Prelude hiding (round)
 
-import Control.Applicative ((<*>), (<$>))
 import Data.Maybe (fromJust)
 
 import qualified System.Random.Shuffle as Shuffle

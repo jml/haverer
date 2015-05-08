@@ -25,7 +25,6 @@ module Haverer.Game (
   winners
   ) where
 
-import Control.Applicative ((<$>))
 import Control.Monad.Random (MonadRandom)
 
 import Haverer.Deck (Deck, Complete, newDeck)
