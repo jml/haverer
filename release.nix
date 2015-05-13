@@ -20,10 +20,10 @@ let
         pkgs = import <nixpkgs> { inherit system; };
         modifiedHaskellPackages = pkgs.haskellngPackages.override {
           overrides = self: super: {
-            haverer = self.callPackage havererSrc;
+            haverer = self.callPackage havererSrc {};
           };
         };
-      in modifiedHaskellPackages.haverer {};
+      in modifiedHaskellPackages.haverer;
 
   };
 
