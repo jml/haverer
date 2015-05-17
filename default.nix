@@ -1,5 +1,6 @@
-{ mkDerivation, base, containers, lens, MonadRandom, pretty-show
-, random-shuffle, stdenv, tasty, tasty-hunit, tasty-quickcheck
+{ mkDerivation, base, basic-prelude, containers, lens, MonadRandom
+, pretty-show , random-shuffle, stdenv, tasty, tasty-hunit, tasty-quickcheck
+, text
 }:
 mkDerivation {
   pname = "haverer";
@@ -8,11 +9,12 @@ mkDerivation {
   isLibrary = true;
   isExecutable = true;
   buildDepends = [
-    base containers lens MonadRandom pretty-show random-shuffle tasty
-    tasty-quickcheck
+    base basic-prelude containers lens MonadRandom pretty-show random-shuffle
+    tasty tasty-quickcheck text
   ];
   testDepends = [
-    base containers random-shuffle tasty tasty-hunit tasty-quickcheck
+    base basic-prelude containers random-shuffle tasty tasty-hunit
+    tasty-quickcheck text
   ];
   license = stdenv.lib.licenses.asl20;
 }
