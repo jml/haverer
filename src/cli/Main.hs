@@ -13,13 +13,14 @@
 -- limitations under the License.
 
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE NoImplicitPrelude #-}
+{-# LANGUAGE OverloadedStrings #-}
+
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
+import BasicPrelude hiding (round)
 
-import Prelude hiding (round)
-
-import Control.Monad (void)
-import Data.List (intercalate)
+import qualified Data.Text as Text
 
 import qualified Haverer.Engine as E
 import qualified Haverer.Game as Game
@@ -41,7 +42,7 @@ main = do
   players <-
     case makePlayerSet result of
      Right set -> return set
-     Left e -> fail $ "Couldn't make set for " ++ show result ++ " players: " ++ show e
+     Left e -> error $ Text.unpack $ "Couldn't make set for "++ show result ++ " players: " ++ show e
 
   void $ E.playGame players
   where makePlayerSet n = toPlayerSet $ take n $ map PlayerId [1..]

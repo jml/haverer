@@ -12,9 +12,14 @@
 -- See the License for the specific language governing permissions and
 -- limitations under the License.
 
+{-# LANGUAGE NoImplicitPrelude #-}
+{-# LANGUAGE OverloadedStrings #-}
+
 module CLI where
 
-import Data.List (isPrefixOf)
+import BasicPrelude
+
+import qualified Data.Text as Text
 
 import Test.Tasty
 import Test.Tasty.QuickCheck
@@ -27,5 +32,5 @@ import Haverer.Testing (inRoundEvent)
 suite :: TestTree
 suite = testGroup "Haverer.CLI" [
   testProperty "event toText coverage" $
-  forAll inRoundEvent $ not . isPrefixOf "UNKNOWN" . toText
+  forAll inRoundEvent $ not . Text.isPrefixOf "UNKNOWN" . toText
   ]

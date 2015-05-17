@@ -12,6 +12,7 @@
 -- See the License for the specific language governing permissions and
 -- limitations under the License.
 
+{-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE TemplateHaskell #-}
 
 module Haverer.Player (
@@ -33,8 +34,8 @@ module Haverer.Player (
   unprotect
   ) where
 
+import BasicPrelude
 import Control.Lens hiding (chosen)
-import Data.List (nub, sort)
 
 import Haverer.Deck (Card)
 

@@ -12,6 +12,8 @@
 -- See the License for the specific language governing permissions and
 -- limitations under the License.
 
+{-# LANGUAGE NoImplicitPrelude #-}
+
 module Haverer.Internal.Counter (
   Counter,
   increment,
@@ -22,14 +24,16 @@ module Haverer.Internal.Counter (
   topValue,
   ) where
 
-import qualified Data.Foldable as Foldable
+import BasicPrelude
+import Prelude (Foldable)
+
 import qualified Data.Map as Map
 
 
 data Counter k a = Counter { _uncounter :: Map.Map k a } deriving Show
 
-incrementMany :: (Ord k, Num a, Foldable.Foldable m) => Counter k a -> m k -> Counter k a
-incrementMany = Foldable.foldl increment
+incrementMany :: (Ord k, Num a, Foldable m) => Counter k a -> m k -> Counter k a
+incrementMany = foldl increment
 
 increment :: (Ord k, Num a) => Counter k a -> k -> Counter k a
 increment (Counter m) key =
@@ -40,7 +44,7 @@ initialize :: (Ord k, Num a) => [k] -> Counter k a
 initialize keys = Counter $ Map.fromList (zip keys (repeat 0))
 
 topValue :: (Ord k, Ord a) => Counter k a -> a
-topValue (Counter m) = Foldable.maximum $ Map.elems m
+topValue (Counter m) = maximum $ Map.elems m
 
 withValue :: (Ord k, Eq a) => Counter k a -> a -> [k]
 withValue (Counter m) v  = Map.keys $ Map.filter (== v) m

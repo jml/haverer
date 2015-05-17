@@ -12,9 +12,14 @@
 -- See the License for the specific language governing permissions and
 -- limitations under the License.
 
+{-# LANGUAGE NoImplicitPrelude #-}
+{-# LANGUAGE OverloadedStrings #-}
+
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
 module Player (suite) where
+
+import BasicPrelude
 
 import qualified Data.Set as Set
 

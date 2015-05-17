@@ -13,11 +13,15 @@
 -- limitations under the License.
 
 -- The dreaded 'utils' module of death.
+
+{-# LANGUAGE NoImplicitPrelude #-}
+{-# LANGUAGE OverloadedStrings #-}
+
 module Utils (
   isSubListOf,
   ) where
 
-import Data.List (delete, sort)
+import BasicPrelude
 
 
 isSubListOf :: (Eq a, Ord a) => [a] -> [a] -> Bool

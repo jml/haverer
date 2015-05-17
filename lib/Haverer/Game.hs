@@ -12,6 +12,9 @@
 -- See the License for the specific language governing permissions and
 -- limitations under the License.
 
+{-# LANGUAGE NoImplicitPrelude #-}
+
+
 module Haverer.Game (
   Game,
   Outcome,
@@ -25,6 +28,7 @@ module Haverer.Game (
   winners
   ) where
 
+import BasicPrelude
 import Control.Monad.Random (MonadRandom)
 
 import Haverer.Deck (Deck, Complete, newDeck)

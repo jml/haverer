@@ -12,14 +12,17 @@
 -- See the License for the specific language governing permissions and
 -- limitations under the License.
 
-{-# OPTIONS_GHC -fno-warn-orphans #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE NoImplicitPrelude #-}
+{-# LANGUAGE OverloadedStrings #-}
+
+{-# OPTIONS_GHC -fno-warn-orphans #-}
 
 module Round where
 
-import Prelude hiding (round)
+import BasicPrelude hiding (round)
 
-import Data.Maybe (fromJust, isNothing)
+import Data.Maybe (fromJust)
 
 import Test.Tasty
 import Test.Tasty.QuickCheck

@@ -12,6 +12,9 @@
 -- See the License for the specific language governing permissions and
 -- limitations under the License.
 
+
+{-# LANGUAGE NoImplicitPrelude #-}
+
 module Haverer.Action (
   BadPlay,
   Play(..),
@@ -22,6 +25,8 @@ module Haverer.Action (
   playToAction,
   viewAction
   ) where
+
+import BasicPrelude
 
 import Haverer.Deck (Card(..))
 

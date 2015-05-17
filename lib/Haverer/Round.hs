@@ -12,6 +12,8 @@
 -- See the License for the specific language governing permissions and
 -- limitations under the License.
 
+{-# LANGUAGE NoImplicitPrelude #-}
+{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE ViewPatterns #-}
 
@@ -48,13 +50,12 @@ module Haverer.Round (
   , prop_ringIsActivePlayers
   ) where
 
-import Prelude hiding (round)
+import BasicPrelude hiding (round)
 
 import Control.Lens hiding (chosen)
 
-import Data.Function (on)
-import Data.List (groupBy, sortBy)
-import Data.Maybe (fromJust, isJust, mapMaybe)
+import Data.Maybe (fromJust)
+import qualified Data.Text as Text
 import qualified Data.Map as Map
 
 import Haverer.Action (
@@ -110,7 +111,7 @@ makeRound deck playerSet =
   nextTurn $ case deal deck (length playerList) of
    (remainder, Just cards) ->
      case pop remainder of
-      (_, Nothing) -> error ("Not enough cards for burn: " ++ show deck)
+      (_, Nothing) -> error $ Text.unpack ("Not enough cards for burn: " ++ show deck)
       (stack', Just burn') -> Round {
         _stack = stack',
         _playOrder = fromJust (makeRing playerList),
@@ -118,7 +119,7 @@ makeRound deck playerSet =
         _state = NotStarted,
         _burn = burn'
         }
-   _ -> error ("Given a complete deck - " ++ show deck ++ "- that didn't have enough cards for players - " ++ show playerSet)
+   _ -> error $ Text.unpack ("Given a complete deck - " ++ show deck ++ "- that didn't have enough cards for players - " ++ show playerSet)
   where playerList = toPlayers playerSet
 
 
@@ -211,7 +212,7 @@ nextTurn round =
       Left _ -> set state Over round
       Right newPlayOrder ->
         case modifyActivePlayer round' pid unprotect of
-         Left e -> error $ "Couldn't unprotect current player: " ++ show e
+         Left e -> error $ Text.unpack $ "Couldn't unprotect current player: " ++ show e
          Right round'' -> set playOrder newPlayOrder round''
 
 
@@ -298,7 +299,7 @@ actionToEvent' _ hand (viewAction -> (_, Wizard, Attack target)) =
 actionToEvent' _ _ (viewAction -> (pid, General, Attack target)) = SwappedHands target pid
 actionToEvent' _ _ (viewAction -> (_, Minister, NoEffect)) = NoChange
 actionToEvent' _ _ (viewAction -> (pid, Prince, NoEffect)) = Eliminated pid
-actionToEvent' _ _ action = error $ "Invalid action: " ++ show action
+actionToEvent' _ _ action = error $ Text.unpack $ "Invalid action: " ++ show action
 
 
 -- XXX: Lots of these re-get players from the Round that have already been
@@ -351,7 +352,7 @@ playTurn round = do
                                 Nothing -> Left (round, RoundOver)
                                 Just r -> return r
   player <- case getActivePlayer round playerId of
-             Left e -> error $ "Current player is not active: " ++ show e
+             Left e -> error $ Text.unpack $ "Current player is not active: " ++ show e
              Right r -> return r
   -- The card the player chose is now put in front of them, and the card they
   -- didn't chose is now their hand.
@@ -373,7 +374,7 @@ playTurn round = do
 
     bustOut pid dealt hand =
       case modifyActivePlayer round pid (`bust` dealt) of
-       Left e -> error $ "Could not bust out player: " ++ show e
+       Left e -> error $ Text.unpack $ "Could not bust out player: " ++ show e
        Right round' -> (nextTurn (set state Playing round'), BustedOut pid dealt hand)
 
 

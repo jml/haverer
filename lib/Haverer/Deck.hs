@@ -12,6 +12,9 @@
 -- See the License for the specific language governing permissions and
 -- limitations under the License.
 
+{-# LANGUAGE NoImplicitPrelude #-}
+
+
 module Haverer.Deck (
   allCards,
   baseCards,
@@ -28,9 +31,9 @@ module Haverer.Deck (
   ) where
 
 
-import Control.Monad
+import BasicPrelude
+
 import Control.Monad.Random (MonadRandom)
-import Data.List (sort, (\\))
 import System.Random.Shuffle (shuffleM)
 
 
@@ -70,7 +73,6 @@ baseCards = [
 baseDeck :: Deck Complete
 baseDeck = Deck baseCards
 
-
 shuffleDeck :: MonadRandom m => Deck a -> m (Deck a)
 shuffleDeck (Deck d) = liftM Deck $ shuffleM d
 
@@ -90,9 +92,6 @@ deal (Deck cards) n =
   case splitAt n cards of
    (_, []) -> (Deck cards, Nothing)
    (top, rest) -> (Deck rest, Just top)
-
-validateSubDeck :: [Card] -> Maybe (Deck Incomplete)
-validateSubDeck cards = if null $ cards \\ baseCards then Just (Deck cards) else Nothing
 
 toList :: Deck a -> [Card]
 toList (Deck xs) = xs

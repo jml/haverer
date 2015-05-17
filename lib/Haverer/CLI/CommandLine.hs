@@ -12,7 +12,10 @@
 -- See the License for the specific language governing permissions and
 -- limitations under the License.
 
+{-# LANGUAGE NoImplicitPrelude #-}
+{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ViewPatterns #-}
+
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
 module Haverer.CLI.CommandLine (
@@ -23,11 +26,9 @@ module Haverer.CLI.CommandLine (
   pickPlay
   ) where
 
-import Prelude hiding (round)
+import BasicPrelude hiding (round)
 
-import Data.List (intercalate)
 import qualified Data.Map as Map
-import Text.Read (readMaybe)
 
 import Haverer.Action (Play(..), viewAction)
 import Haverer.Deck (Card(..))
@@ -151,7 +152,7 @@ instance ConsoleText a => ConsoleText (Victory a) where
     "Many winners holding " ++ toText card ++ ": " ++ intercalate ", " (map toText winners)
 
 
-formatScores :: ConsoleText playerId => [(playerId, Int)] -> String
+formatScores :: ConsoleText playerId => [(playerId, Int)] -> Text
 formatScores scores =
   underline '-' "Scores" ++ "\n" ++
   unlines (map formatScore scores)
@@ -163,10 +164,10 @@ pickNumPlayers =
   repeatedlyPrompt "Pick number of players: " parseNumPlayers
   where
     parseNumPlayers s =
-      case readMaybe s of
+      case readMay s of
        Nothing -> Left errMsg
        Just i -> if 2 <= i && i <= 4 then Right i else Left errMsg
-    errMsg = "Please enter a number between 2 and 4"
+    errMsg = "Please enter a number between 2 and 4" :: Text
 
 
 pickCardToPlay :: (Card, Card) -> IO Card

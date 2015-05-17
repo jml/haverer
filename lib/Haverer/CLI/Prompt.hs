@@ -13,30 +13,33 @@
 -- limitations under the License.
 
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE NoImplicitPrelude #-}
+{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TypeSynonymInstances #-}
 
 module Haverer.CLI.Prompt where
 
-import Data.List (intercalate)
-import Text.Read (readMaybe)
+import BasicPrelude
+
+import qualified Data.Text as Text
 import System.IO (hFlush, stdout)
 
 
 class ConsoleText a where
-  toText :: a -> String
+  toText :: a -> Text
 
-instance ConsoleText String where
+instance ConsoleText Text where
   toText = id
 
 instance ConsoleText Int where
   toText = show
 
 
-underline :: Char -> String -> String
-underline char string = string ++ '\n':replicate (length string) char
+underline :: Char -> Text -> Text
+underline char string = string ++ Text.pack ('\n':replicate (Text.length string) char)
 
 
-prompt :: ConsoleText e => String -> (String -> Either e a) -> IO (Either e a)
+prompt :: ConsoleText e => Text -> (Text -> Either e a) -> IO (Either e a)
 prompt promptStr parser = do
   putStr promptStr
   hFlush stdout
@@ -44,7 +47,7 @@ prompt promptStr parser = do
   return $ parser input
 
 
-repeatedlyPrompt :: ConsoleText e => String -> (String -> Either e a) -> IO a
+repeatedlyPrompt :: ConsoleText e => Text -> (Text -> Either e a) -> IO a
 repeatedlyPrompt promptStr parser = do
   result <- prompt promptStr parser
   case result of
@@ -58,11 +61,11 @@ at :: [a] -> Int -> Maybe a
 at xs i = if 0 <= i && i < length xs then Just (xs !! i) else Nothing
 
 
-chooseItem :: ConsoleText a => String -> [a] -> IO a
+chooseItem :: ConsoleText a => Text -> [a] -> IO a
 chooseItem promptStr = chooseItem' promptStr 1
 
 -- XXX: Crazier: Allow specifying generic Idx
-chooseItem' :: ConsoleText a => String -> Int -> [a] -> IO a
+chooseItem' :: ConsoleText a => Text -> Int -> [a] -> IO a
 chooseItem' promptStr startIndex items =
   repeatedlyPrompt fullPrompt (pickItem items)
   where
@@ -71,10 +74,10 @@ chooseItem' promptStr startIndex items =
       intercalate "\n" [toText (i :: Int) ++ ". " ++ toText x | (i, x) <- zip [startIndex ..] items]
       ++ "\n>>> "
     pickItem xs chosen =
-      case readMaybe chosen of
+      case readMay chosen of
        Nothing -> Left errMsg
        Just i ->
          case xs `at` (i - startIndex) of
           Nothing -> Left errMsg
           Just x -> return x
-    errMsg = "Please select an item from the list"
+    errMsg = "Please select an item from the list" :: Text

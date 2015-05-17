@@ -12,6 +12,8 @@
 -- See the License for the specific language governing permissions and
 -- limitations under the License.
 
+{-# LANGUAGE NoImplicitPrelude #-}
+
 module Haverer.Internal.Ring (
   Ring
   , makeRing
@@ -25,6 +27,7 @@ module Haverer.Internal.Ring (
   , currentItem
   ) where
 
+import BasicPrelude
 
 data Ring a = Ring {
   _items :: [a],

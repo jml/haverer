@@ -12,22 +12,25 @@
 -- See the License for the specific language governing permissions and
 -- limitations under the License.
 
+{-# LANGUAGE NoImplicitPrelude #-}
+{-# LANGUAGE OverloadedStrings #-}
+
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
 module Ring where
 
+import BasicPrelude
+
 import Test.Tasty
 import Test.Tasty.QuickCheck
 
-import Control.Monad (foldM)
-import Data.Maybe (fromJust, isNothing)
-import Data.List
+import Data.Maybe (fromJust)
 
 import Haverer.Internal.Ring
 
 
 instance (Arbitrary a) => Arbitrary (Ring a) where
-  arbitrary = fmap (fromJust . makeRing) (listOf1 arbitrary)
+  arbitrary = fromJust . makeRing <$> listOf1 arbitrary
 
 
 -- If we advance as many times as there are items, we end up at the start.
