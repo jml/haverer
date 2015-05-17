@@ -96,7 +96,7 @@ data State = NotStarted | Turn Card | Playing | Over deriving Show
 data Round playerId = Round {
   _stack :: Deck Incomplete,
   _playOrder :: Ring playerId,
-  _players :: Map.Map playerId Player,
+  _players :: Map playerId Player,
   _state :: State,
   _burn :: Card
 } deriving Show
@@ -145,7 +145,7 @@ getActivePlayers = Ring.toList . view playOrder
 
 
 -- | A map of player IDs to players.
-getPlayerMap :: Round playerId -> Map.Map playerId Player
+getPlayerMap :: Round playerId -> Map playerId Player
 getPlayerMap = view players
 
 
