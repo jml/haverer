@@ -52,6 +52,7 @@ module Haverer.Round (
 
 import BasicPrelude hiding (round)
 
+import Control.Error
 import Control.Lens hiding (chosen)
 
 import Data.Maybe (fromJust)
@@ -323,11 +324,6 @@ applyEvent round (ForcedDiscard pid) =
 applyEvent round (ForcedReveal {}) = return round
 
 
-maybeToEither :: e -> Maybe a -> Either e a
-maybeToEither e Nothing = Left e
-maybeToEither _ (Just a) = Right a
-
-
 -- | Play a turn in a Round.
 --
 -- This is the main function in this module.
@@ -363,7 +359,7 @@ playTurn round = do
   where
     handlePlay playerId player dealt hand chosen play = do
       -- An Action is a valid player, card, play combination.
-      player' <- maybeToEither (WrongCard chosen (dealt, hand)) (playCard player dealt chosen)
+      player' <- note (WrongCard chosen (dealt, hand)) (playCard player dealt chosen)
       let round' = setActivePlayer (set state Playing round) playerId player'
       action <- case playToAction playerId chosen play of
                  Left e -> Left $ InvalidPlay e
