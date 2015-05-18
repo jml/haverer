@@ -270,37 +270,34 @@ actionToEvent :: (Ord playerId, Show playerId) => Round playerId -> Action playe
 actionToEvent round action@(viewAction -> (pid, _, play)) = do
   (_, sourceHand) <- getActivePlayerHand round pid
   case getTarget play of
-   Nothing -> return $ actionToEvent' sourceHand Nothing action
+   Nothing -> return $ noTarget action
    Just target -> do
      (targetPlayer, targetHand) <- getActivePlayerHand round target
-     if fromJust (isProtected targetPlayer)
-       then return NoChange
-       else return $ actionToEvent' sourceHand (Just targetHand) action
+     return $ case isProtected targetPlayer of
+      Just _ -> NoChange
+      Nothing -> withTarget sourceHand targetHand action
 
+  where
 
--- | Given the hand of the current player, the hand of the target (if there is
--- one), and the action being played, return the change we need to make.
-actionToEvent' :: Show playerId => Card -> Maybe Card -> Action playerId -> Event playerId
-actionToEvent' _ hand (viewAction -> (_, Soldier, Guess target guess)) =
-  if fromJust hand == guess
-  then Eliminated target
-  else NoChange
-actionToEvent' _ (Just targetCard) (viewAction -> (pid, Clown, Attack target)) =
-  ForcedReveal pid target targetCard
-actionToEvent' sourceHand targetHand (viewAction -> (pid, Knight, Attack target)) =
-  case compare sourceHand (fromJust targetHand) of
-    LT -> Eliminated pid
-    EQ -> NoChange
-    GT -> Eliminated target
-actionToEvent' _ _ (viewAction -> (pid, Priestess, NoEffect)) = Protected pid
-actionToEvent' _ hand (viewAction -> (_, Wizard, Attack target)) =
-  case hand of
-    Just Prince -> Eliminated target
-    _ -> ForcedDiscard target
-actionToEvent' _ _ (viewAction -> (pid, General, Attack target)) = SwappedHands target pid
-actionToEvent' _ _ (viewAction -> (_, Minister, NoEffect)) = NoChange
-actionToEvent' _ _ (viewAction -> (pid, Prince, NoEffect)) = Eliminated pid
-actionToEvent' _ _ action = terror $ "Invalid action: " ++ show action
+    noTarget (viewAction -> (_, Priestess, NoEffect)) = Protected pid
+    noTarget (viewAction -> (_, Minister, NoEffect)) = NoChange
+    noTarget (viewAction -> (_, Prince, NoEffect)) = Eliminated pid
+    noTarget _ = terror $ "We thought " ++ show action ++ " had no target."
+
+    withTarget _ targetCard (viewAction -> (_, Soldier, Guess target guess))
+      | targetCard == guess = Eliminated target
+      | otherwise = NoChange
+    withTarget _ targetCard (viewAction -> (_, Clown, Attack target)) =
+      ForcedReveal pid target targetCard
+    withTarget sourceHand targetHand (viewAction -> (_, Knight, Attack target)) =
+      case compare sourceHand targetHand of
+       LT -> Eliminated pid
+       EQ -> NoChange
+       GT -> Eliminated target
+    withTarget _ Prince (viewAction -> (_, Wizard, Attack target)) = Eliminated target
+    withTarget _ _ (viewAction -> (_, Wizard, Attack target)) = ForcedDiscard target
+    withTarget _ _ (viewAction -> (_, General, Attack target)) = SwappedHands target pid
+    withTarget _ _ _ = terror $ "Invalid action: " ++ show action
 
 
 -- XXX: Lots of these re-get players from the Round that have already been
