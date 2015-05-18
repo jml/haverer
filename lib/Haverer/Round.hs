@@ -93,14 +93,14 @@ import qualified Haverer.Internal.Ring as Ring
 
 
 -- XXX: Consider popping this out so that it's the constructor of the Round.
-data State = NotStarted | Turn Card | Playing | Over deriving Show
+data RoundState = NotStarted | Turn Card | Playing | Over deriving Show
 
 
 data Round playerId = Round {
   _stack :: Deck Incomplete,
   _playOrder :: Ring playerId,
   _players :: Map playerId Player,
-  _state :: State,
+  _roundState :: RoundState,
   _burn :: Card
 } deriving Show
 
@@ -119,7 +119,7 @@ makeRound deck playerSet =
         _stack = stack',
         _playOrder = fromJust (makeRing playerList),
         _players = Map.fromList $ zip playerList (map makePlayer cards),
-        _state = NotStarted,
+        _roundState = NotStarted,
         _burn = burn'
         }
    _ -> terror ("Given a complete deck - " ++ show deck ++ "- that didn't have enough cards for players - " ++ show playerSet)
@@ -168,7 +168,7 @@ drawCard r =
 -- will be Nothing.
 currentPlayer :: Round playerId -> Maybe playerId
 currentPlayer rnd =
-  case view state rnd of
+  case view roundState rnd of
    Over -> Nothing
    NotStarted -> Nothing
    Turn _ -> Just $ (currentItem . view playOrder) rnd
@@ -182,14 +182,14 @@ currentTurn rnd = do
   d <- dealt
   return (pid, (d, hand))
   where
-    dealt = case view state rnd of
+    dealt = case view roundState rnd of
       Turn d -> Just d
       _ -> Nothing
 
 
 nextPlayer :: Round playerId -> Maybe playerId
 nextPlayer rnd =
-  case view state rnd of
+  case view roundState rnd of
    Over -> Nothing
    NotStarted -> Just $ currentItem playOrder'
    Turn _ -> Just $ nextItem playOrder'
@@ -202,17 +202,17 @@ nextPlayer rnd =
 
 -- | Progress the Round to the next turn.
 nextTurn :: (Show playerId, Ord playerId) => Round playerId -> Round playerId
-nextTurn round@(Round { _state = Over }) = round
-nextTurn round@(Round { _state = NotStarted }) = drawCard' round
-nextTurn (Round { _state = Turn _ } ) =
+nextTurn round@(Round { _roundState = Over }) = round
+nextTurn round@(Round { _roundState = NotStarted }) = drawCard' round
+nextTurn (Round { _roundState = Turn _ } ) =
   error "Cannot advance to next turn while waiting for play."
 nextTurn round =
   let round' = drawCard' round in
   case nextPlayer round' of
-   Nothing -> set state Over round
+   Nothing -> set roundState Over round
    Just pid ->
      case advance1 (view playOrder round) of
-      Left _ -> set state Over round
+      Left _ -> set roundState Over round
       Right newPlayOrder ->
         let round'' = assertRight "Couldn't unprotect current player: "
                       (modifyActivePlayer round' pid unprotect) in
@@ -222,8 +222,8 @@ nextTurn round =
 drawCard' :: Round playerId -> Round playerId
 drawCard' round =
   case drawCard round of
-   (round', Just card) -> set state (Turn card) round'
-   _ -> set state Over round
+   (round', Just card) -> set roundState (Turn card) round'
+   _ -> set roundState Over round
 
 
 data BadAction playerId = NoSuchPlayer playerId
@@ -353,7 +353,7 @@ playTurn round = do
   where
     handlePlay playerId player dealt hand chosen play = do
       player' <- note (WrongCard chosen (dealt, hand)) (playCard player dealt chosen)
-      let round' = setActivePlayer (set state Playing round) playerId player'
+      let round' = setActivePlayer (set roundState Playing round) playerId player'
       action <- fmapL InvalidPlay (playToAction playerId chosen play)
       result <- actionToEvent round' action
       round'' <- applyEvent round' result
@@ -362,7 +362,7 @@ playTurn round = do
     bustOut pid dealt hand =
       let bustedRound = assertRight "Could not bust out player: "
                                     (modifyActivePlayer round pid (`bust` dealt))
-      in (nextTurn (set state Playing bustedRound), BustedOut pid dealt hand)
+      in (nextTurn (set roundState Playing bustedRound), BustedOut pid dealt hand)
 
 
 -- | Play a turn in a Round
@@ -400,7 +400,7 @@ survivors = Map.toList . Map.mapMaybe getHand . view players
 
 -- | If the Round is Over, return the Victory data. Otherwise, Nothing.
 victory :: Round playerId -> Maybe (Victory playerId)
-victory (round@Round { _state = Over }) =
+victory (round@Round { _roundState = Over }) =
   case survivors round of
    [(pid, card)] -> Just $ SoleSurvivor pid card
    xs -> let (best:rest) = reverse (groupBy ((==) `on` snd) (sortBy (compare `on` snd) xs))
@@ -430,7 +430,7 @@ setActivePlayer round pid newP =
     round' = over players (set (at pid) (Just newP)) round
     dropPlayer p =
       case dropItem1 (view playOrder round') p of
-       Left _ -> set state Over round
+       Left _ -> set roundState Over round
        Right newOrder -> set playOrder newOrder round'
 
 
@@ -457,7 +457,7 @@ prop_allCardsPresent =
             ++ (concatMap getDiscards . Map.elems . view players) rnd
             ++ (mapMaybe getHand . Map.elems . view players) rnd)
             ++ (
-            case _state rnd of
+            case _roundState rnd of
               Turn x -> [x]
               _ -> [])
 
@@ -475,6 +475,6 @@ prop_ringIsActivePlayers r =
 
 prop_multipleActivePlayers :: Round playerId -> Bool
 prop_multipleActivePlayers r =
-  case view state r of
+  case view roundState r of
    Over -> True
    _ -> Ring.ringSize (view playOrder r) > 1
