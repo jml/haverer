@@ -56,7 +56,6 @@ import Control.Error
 import Control.Lens hiding (chosen)
 
 import Data.Maybe (fromJust)
-import qualified Data.Text as Text
 import qualified Data.Map as Map
 
 import Haverer.Action (
@@ -86,7 +85,7 @@ import Haverer.Player (
   unprotect
   )
 
-import Haverer.Internal.Error (assertRight)
+import Haverer.Internal.Error (assertRight, terror)
 import Haverer.Internal.Ring (Ring, advance1, currentItem, dropItem1, makeRing, nextItem)
 import qualified Haverer.Internal.Ring as Ring
 
@@ -113,7 +112,7 @@ makeRound deck playerSet =
   nextTurn $ case deal deck (length playerList) of
    (remainder, Just cards) ->
      case pop remainder of
-      (_, Nothing) -> error $ Text.unpack ("Not enough cards for burn: " ++ show deck)
+      (_, Nothing) -> terror ("Not enough cards for burn: " ++ show deck)
       (stack', Just burn') -> Round {
         _stack = stack',
         _playOrder = fromJust (makeRing playerList),
@@ -121,7 +120,7 @@ makeRound deck playerSet =
         _state = NotStarted,
         _burn = burn'
         }
-   _ -> error $ Text.unpack ("Given a complete deck - " ++ show deck ++ "- that didn't have enough cards for players - " ++ show playerSet)
+   _ -> terror ("Given a complete deck - " ++ show deck ++ "- that didn't have enough cards for players - " ++ show playerSet)
   where playerList = toPlayers playerSet
 
 
@@ -301,7 +300,7 @@ actionToEvent' _ hand (viewAction -> (_, Wizard, Attack target)) =
 actionToEvent' _ _ (viewAction -> (pid, General, Attack target)) = SwappedHands target pid
 actionToEvent' _ _ (viewAction -> (_, Minister, NoEffect)) = NoChange
 actionToEvent' _ _ (viewAction -> (pid, Prince, NoEffect)) = Eliminated pid
-actionToEvent' _ _ action = error $ Text.unpack $ "Invalid action: " ++ show action
+actionToEvent' _ _ action = terror $ "Invalid action: " ++ show action
 
 
 -- XXX: Lots of these re-get players from the Round that have already been

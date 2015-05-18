@@ -23,7 +23,6 @@ module Haverer.Testing where
 import BasicPrelude hiding (round)
 
 import Data.Maybe (fromJust)
-import qualified Data.Text as Text
 
 import qualified System.Random.Shuffle as Shuffle
 import Test.Tasty.QuickCheck
@@ -71,9 +70,7 @@ playTurn' round card play =
   case playTurn round of
    Left (round', event) -> (round', event)
    Right handlePlay ->
-     case handlePlay card play of
-      Left err -> error $ Text.unpack $ "Should have generated valid play: " ++ show (err, round, card, play)
-      Right (round', event) -> (round', event)
+     assertRight "Should have generated valid play: " (handlePlay card play)
 
 
 playRandomTurn :: (Ord a, Show a) => Round a -> Gen (Round a, Result a)
