@@ -83,15 +83,15 @@ makeDeck :: [Card] -> Maybe (Deck Complete)
 makeDeck cards =
   if sort cards == baseCards then Just (Deck cards) else Nothing
 
-pop :: Deck a -> (Deck Incomplete, Maybe Card)
-pop (Deck []) = (Deck [], Nothing)
-pop (Deck (c:cards)) = (Deck cards, Just c)
+pop :: Deck a -> (Maybe Card, Deck Incomplete)
+pop (Deck []) = (Nothing, Deck [])
+pop (Deck (c:cards)) = (Just c, Deck cards)
 
-deal :: Deck a -> Int -> (Deck Incomplete, Maybe [Card])
+deal :: Deck a -> Int -> (Maybe [Card], Deck Incomplete)
 deal (Deck cards) n =
   case splitAt n cards of
-   (_, []) -> (Deck cards, Nothing)
-   (top, rest) -> (Deck rest, Just top)
+   (_, []) -> (Nothing, Deck cards)
+   (top, rest) -> (Just top, Deck rest)
 
 toList :: Deck a -> [Card]
 toList (Deck xs) = xs

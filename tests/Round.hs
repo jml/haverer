@@ -100,7 +100,7 @@ prop_protectedUnaffected round card play =
       targetPlayer = getPlayer round =<< target
   in
    Just True == (isProtected =<< targetPlayer) ==>
-   let (round', Played _ result) = playTurn' round card play in
+   let (Played _ result, round') = playTurn' round card play in
     prop_playerSame (fromJust target) round round' &&
     (result == NoChange)
 
@@ -126,7 +126,7 @@ prop_ministerBustsOut :: Round PlayerId -> Property
 prop_ministerBustsOut round =
   let Just (pid, (dealt, hand)) = currentTurn round in
   bustingHand dealt hand ==>
-  let Left (Right (round', event)) = playTurn round in
+  let Left (Right (event, round')) = playTurn round in
    pid `notElem` getActivePlayers round' &&
    event == BustedOut pid dealt hand
 

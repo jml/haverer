@@ -112,10 +112,10 @@ makeLenses ''Round
 makeRound :: (Ord playerId, Show playerId) => Deck Complete -> PlayerSet playerId -> Round playerId
 makeRound deck playerSet =
   nextTurn $ case deal deck (length playerList) of
-   (remainder, Just cards) ->
+   (Just cards, remainder) ->
      case pop remainder of
-      (_, Nothing) -> terror ("Not enough cards for burn: " ++ show deck)
-      (stack', Just burn') -> Round {
+      (Nothing, _) -> terror ("Not enough cards for burn: " ++ show deck)
+      (Just burn', stack') -> Round {
         _stack = stack',
         _playOrder = fromJust (makeRing playerList),
         _players = Map.fromList $ zip playerList (map makePlayer cards),
@@ -158,10 +158,10 @@ getPlayer round pid = view (players . at pid) round
 
 
 -- | Draw a card from the top of the Deck. Returns the card and a new Round.
-drawCard :: Round playerId -> (Round playerId, Maybe Card)
+drawCard :: Round playerId -> (Maybe Card, Round playerId)
 drawCard r =
-  let (stack', card) = pop (view stack r) in
-  (set stack stack' r, card)
+  let (card, stack') = pop (view stack r) in
+  (card, set stack stack' r)
 
 
 -- | The ID of the current player. If the Round is over or not started, this
@@ -222,7 +222,7 @@ nextTurn round =
 drawCard' :: Round playerId -> Round playerId
 drawCard' round =
   case drawCard round of
-   (round', Just card) -> set roundState (Turn card) round'
+   (Just card, round') -> set roundState (Turn card) round'
    _ -> set roundState Over round
 
 
@@ -321,7 +321,7 @@ applyEvent round (SwappedHands pid1 pid2) = do
    where replace pid p rnd = setActivePlayer rnd pid p
 applyEvent round (Eliminated pid) = modifyActivePlayer round pid eliminate
 applyEvent round (ForcedDiscard pid) =
-  let (round', card) = drawCard round in
+  let (card, round') = drawCard round in
   modifyActivePlayer round' pid (`discardAndDraw` card)
 applyEvent round (ForcedReveal {}) = return round
 
@@ -341,8 +341,8 @@ applyEvent round (ForcedReveal {}) = return round
 -- either a BadAction or a new Round together with the Result of the play.
 playTurn :: (Ord playerId, Show playerId)
             => Round playerId
-            -> Either (ActionM playerId (Round playerId, Result playerId))
-                      (Card -> Play playerId -> ActionM playerId (Round playerId, Result playerId))
+            -> Either (ActionM playerId (Result playerId, Round playerId))
+                      (Card -> Play playerId -> ActionM playerId (Result playerId, Round playerId))
 playTurn round = do
   (playerId, (dealt, hand)) <- note (Left RoundOver) (currentTurn round)
   let player = assertRight "Current player is not active: " (getActivePlayer round playerId)
@@ -357,12 +357,12 @@ playTurn round = do
       action <- fmapL InvalidPlay (playToAction playerId chosen play)
       result <- actionToEvent round' action
       round'' <- applyEvent round' result
-      return (nextTurn round'', Played action result)
+      return (Played action result, nextTurn round'')
 
     bustOut pid dealt hand =
       let bustedRound = assertRight "Could not bust out player: "
                                     (modifyActivePlayer round pid (`bust` dealt))
-      in (nextTurn (set roundState Playing bustedRound), BustedOut pid dealt hand)
+      in (BustedOut pid dealt hand, nextTurn (set roundState Playing bustedRound))
 
 
 -- | Play a turn in a Round
@@ -373,7 +373,7 @@ playTurn round = do
 playTurn' :: (Ord playerId, Show playerId)
              => Round playerId
              -> Maybe (Card, Play playerId)
-             -> ActionM playerId (Round playerId, Result playerId)
+             -> ActionM playerId (Result playerId, Round playerId)
 playTurn' round optionalPlay = do
   result <- case playTurn round of
              Left action -> action
@@ -381,7 +381,7 @@ playTurn' round optionalPlay = do
                (card, play) <- note NoPlaySpecified optionalPlay
                handler card play
   case (optionalPlay, result) of
-   (Just _, (_, BustedOut {})) -> throwError PlayWhenBusted
+   (Just _, (BustedOut {}, _)) -> throwError PlayWhenBusted
    _ -> return result
 
 

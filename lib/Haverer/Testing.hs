@@ -70,14 +70,14 @@ instance Arbitrary (Round PlayerId) where
 
 -- | For a Round and a known-good Card and Play, play the cards and return the
 -- round and event. If the hand busts out, Card and Play are ignored.
-playTurn' :: (Ord a, Show a) => Round a -> Card -> Play a -> (Round a, Result a)
+playTurn' :: (Ord a, Show a) => Round a -> Card -> Play a -> (Result a, Round a)
 playTurn' round card play = assertRight "Should have generated valid play: " $
   case playTurn round of
    Left action -> action
    Right handler -> handler card play
 
 
-playRandomTurn :: (Ord a, Show a) => Round a -> Gen (Maybe (Round a, Result a))
+playRandomTurn :: (Ord a, Show a) => Round a -> Gen (Maybe (Result a, Round a))
 playRandomTurn round = do
   move <- randomCardPlay round
   case move of
@@ -98,7 +98,7 @@ randomNextMove round = do
   result <- playRandomTurn round
   case result of
    Nothing -> return round
-   Just (round', _) -> return round'
+   Just (_, round') -> return round'
 
 
 -- | Generate a sequence of N rounds, starting from an initial round.
@@ -134,7 +134,7 @@ roundAndPlay = do
 inRoundEvent :: Gen (Result PlayerId)
 inRoundEvent = do
   (round, card, play) <- roundAndPlay
-  return $ snd $ playTurn' round card play
+  return $ fst $ playTurn' round card play
 
 
 -- | Take a list and generate a shuffled version of it.
