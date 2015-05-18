@@ -21,8 +21,13 @@
 import BasicPrelude hiding (round)
 
 import qualified Haverer.Engine as E
-import qualified Haverer.Game as Game
-import Haverer.Player (toPlayerSet)
+import Haverer (
+  toPlayerSet,
+  finalScores,
+  scores,
+  winners,
+  roundsPlayed
+  )
 
 import Haverer.CLI.CommandLine (
   ConsoleText(..),
@@ -72,14 +77,14 @@ instance E.MonadEngine IO PlayerId where
 
   gameOver outcome = do
     putStrLn "GAME OVER"
-    case Game.winners outcome of
+    case winners outcome of
      [x] -> putStrLn $ "The winner is: " ++ toText x ++ "!"
      xs -> putStrLn $ "The winners are: " ++ intercalate ", " (map toText xs) ++ "!"
-    putStrLn $ formatScores $ Game.finalScores outcome
+    putStrLn $ formatScores $ finalScores outcome
 
   roundStarted game _ = do
-    putStrLn $ formatScores $ Game.scores game
-    putStrLn $ underline '=' ("ROUND #" ++ show (Game.roundsPlayed game + 1) ++ " BEGIN")
+    putStrLn $ formatScores $ scores game
+    putStrLn $ underline '=' ("ROUND #" ++ show (roundsPlayed game + 1) ++ " BEGIN")
     putStrLn ""
 
   roundOver v = do
