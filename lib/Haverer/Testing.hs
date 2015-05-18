@@ -18,13 +18,17 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 
-module Haverer.Testing where
+module Haverer.Testing ( PlayerId
+                       , inRoundEvent
+                       , playTurn'
+                       , randomRound
+                       , randomRounds
+                       , shuffled
+                       ) where
 
 import BasicPrelude hiding (round)
 
 import Data.Maybe (fromJust)
-import qualified Data.Text as Text
-
 import qualified System.Random.Shuffle as Shuffle
 import Test.Tasty.QuickCheck
 
@@ -38,7 +42,7 @@ import Haverer.Round (
   , playTurn
   )
 import Haverer.ValidMoves (getValidMoves)
-
+import Haverer.Internal.Error (assertRight)
 
 
 type PlayerId = Int
@@ -55,9 +59,7 @@ instance Arbitrary (PlayerSet PlayerId) where
     makePlayerSet <$> elements [2, 3, 4]
     where
       makePlayerSet n =
-        case toPlayerSet $ take n [1..] of
-         Left e -> error $ Text.unpack $ "Couldn't make set: " ++ show e
-         Right s -> s
+        assertRight "Couldn't make set: " (toPlayerSet $ take n [1..])
 
 
 instance Arbitrary (Round PlayerId) where
@@ -69,21 +71,18 @@ instance Arbitrary (Round PlayerId) where
 -- | For a Round and a known-good Card and Play, play the cards and return the
 -- round and event. If the hand busts out, Card and Play are ignored.
 playTurn' :: (Ord a, Show a) => Round a -> Card -> Play a -> (Round a, Result a)
-playTurn' round card play =
+playTurn' round card play = assertRight "Should have generated valid play: " $
   case playTurn round of
-   Left (round', event) -> (round', event)
-   Right handlePlay ->
-     case handlePlay card play of
-      Left err -> error $ Text.unpack $ "Should have generated valid play: " ++ show (err, round, card, play)
-      Right (round', event) -> (round', event)
+   Left action -> action
+   Right handler -> handler card play
 
 
-playRandomTurn :: (Ord a, Show a) => Round a -> Gen (Round a, Result a)
+playRandomTurn :: (Ord a, Show a) => Round a -> Gen (Maybe (Round a, Result a))
 playRandomTurn round = do
   move <- randomCardPlay round
   case move of
-   Nothing -> return (round, RoundOver)
-   Just (card, play) -> return $ playTurn' round card play
+   Nothing -> return Nothing
+   Just (card, play) -> return $ Just $ playTurn' round card play
   where
     randomCardPlay round' =
       case getValidMoves round' of
@@ -95,7 +94,11 @@ playRandomTurn round = do
 -- a possible next Round. If there are no valid moves, then return the same
 -- Round.
 randomNextMove :: (Ord a, Show a) => Round a -> Gen (Round a)
-randomNextMove round = fst <$> playRandomTurn round
+randomNextMove round = do
+  result <- playRandomTurn round
+  case result of
+   Nothing -> return round
+   Just (round', _) -> return round'
 
 
 -- | Generate a sequence of N rounds, starting from an initial round.

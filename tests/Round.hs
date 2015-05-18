@@ -126,7 +126,7 @@ prop_ministerBustsOut :: Round PlayerId -> Property
 prop_ministerBustsOut round =
   let Just (pid, (dealt, hand)) = currentTurn round in
   bustingHand dealt hand ==>
-  let Left (round', event) = playTurn round in
+  let Left (Right (round', event)) = playTurn round in
    pid `notElem` getActivePlayers round' &&
    event == BustedOut pid dealt hand
 

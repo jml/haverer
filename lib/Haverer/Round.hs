@@ -22,6 +22,7 @@ module Haverer.Round (
   Round
   , makeRound
   , playTurn
+  , playTurn'
 
     -- The results of playTurn
   , BadAction
@@ -52,10 +53,11 @@ module Haverer.Round (
 
 import BasicPrelude hiding (round)
 
+import Control.Error
+import Control.Monad.Except
 import Control.Lens hiding (chosen)
 
 import Data.Maybe (fromJust)
-import qualified Data.Text as Text
 import qualified Data.Map as Map
 
 import Haverer.Action (
@@ -85,19 +87,20 @@ import Haverer.Player (
   unprotect
   )
 
+import Haverer.Internal.Error (assertRight, terror)
 import Haverer.Internal.Ring (Ring, advance1, currentItem, dropItem1, makeRing, nextItem)
 import qualified Haverer.Internal.Ring as Ring
 
 
 -- XXX: Consider popping this out so that it's the constructor of the Round.
-data State = NotStarted | Turn Card | Playing | Over deriving Show
+data RoundState = NotStarted | Turn Card | Playing | Over deriving Show
 
 
 data Round playerId = Round {
   _stack :: Deck Incomplete,
   _playOrder :: Ring playerId,
   _players :: Map playerId Player,
-  _state :: State,
+  _roundState :: RoundState,
   _burn :: Card
 } deriving Show
 
@@ -111,15 +114,15 @@ makeRound deck playerSet =
   nextTurn $ case deal deck (length playerList) of
    (remainder, Just cards) ->
      case pop remainder of
-      (_, Nothing) -> error $ Text.unpack ("Not enough cards for burn: " ++ show deck)
+      (_, Nothing) -> terror ("Not enough cards for burn: " ++ show deck)
       (stack', Just burn') -> Round {
         _stack = stack',
         _playOrder = fromJust (makeRing playerList),
         _players = Map.fromList $ zip playerList (map makePlayer cards),
-        _state = NotStarted,
+        _roundState = NotStarted,
         _burn = burn'
         }
-   _ -> error $ Text.unpack ("Given a complete deck - " ++ show deck ++ "- that didn't have enough cards for players - " ++ show playerSet)
+   _ -> terror ("Given a complete deck - " ++ show deck ++ "- that didn't have enough cards for players - " ++ show playerSet)
   where playerList = toPlayers playerSet
 
 
@@ -165,7 +168,7 @@ drawCard r =
 -- will be Nothing.
 currentPlayer :: Round playerId -> Maybe playerId
 currentPlayer rnd =
-  case view state rnd of
+  case view roundState rnd of
    Over -> Nothing
    NotStarted -> Nothing
    Turn _ -> Just $ (currentItem . view playOrder) rnd
@@ -179,14 +182,14 @@ currentTurn rnd = do
   d <- dealt
   return (pid, (d, hand))
   where
-    dealt = case view state rnd of
+    dealt = case view roundState rnd of
       Turn d -> Just d
       _ -> Nothing
 
 
 nextPlayer :: Round playerId -> Maybe playerId
 nextPlayer rnd =
-  case view state rnd of
+  case view roundState rnd of
    Over -> Nothing
    NotStarted -> Just $ currentItem playOrder'
    Turn _ -> Just $ nextItem playOrder'
@@ -199,34 +202,37 @@ nextPlayer rnd =
 
 -- | Progress the Round to the next turn.
 nextTurn :: (Show playerId, Ord playerId) => Round playerId -> Round playerId
-nextTurn round@(Round { _state = Over }) = round
-nextTurn round@(Round { _state = NotStarted }) = drawCard' round
-nextTurn (Round { _state = Turn _ } ) =
+nextTurn round@(Round { _roundState = Over }) = round
+nextTurn round@(Round { _roundState = NotStarted }) = drawCard' round
+nextTurn (Round { _roundState = Turn _ } ) =
   error "Cannot advance to next turn while waiting for play."
 nextTurn round =
   let round' = drawCard' round in
   case nextPlayer round' of
-   Nothing -> set state Over round
+   Nothing -> set roundState Over round
    Just pid ->
      case advance1 (view playOrder round) of
-      Left _ -> set state Over round
+      Left _ -> set roundState Over round
       Right newPlayOrder ->
-        case modifyActivePlayer round' pid unprotect of
-         Left e -> error $ Text.unpack $ "Couldn't unprotect current player: " ++ show e
-         Right round'' -> set playOrder newPlayOrder round''
+        let round'' = assertRight "Couldn't unprotect current player: "
+                      (modifyActivePlayer round' pid unprotect) in
+         set playOrder newPlayOrder round''
 
 
 drawCard' :: Round playerId -> Round playerId
 drawCard' round =
   case drawCard round of
-   (round', Just card) -> set state (Turn card) round'
-   _ -> set state Over round
+   (round', Just card) -> set roundState (Turn card) round'
+   _ -> set roundState Over round
 
 
 data BadAction playerId = NoSuchPlayer playerId
                         | InactivePlayer playerId
                         | InvalidPlay (BadPlay playerId)
                         | WrongCard Card (Card, Card)
+                        | PlayWhenBusted
+                        | NoPlaySpecified
+                        | RoundOver
                         deriving Show
 
 
@@ -253,11 +259,11 @@ data Result playerId =
   -- another high card, and thus didn't get to play.
   BustedOut playerId Card Card |
   -- | The player performed an Action resulting in Event.
-  Played (Action playerId) (Event playerId) |
-  -- | The round was already over.
-  RoundOver
+  Played (Action playerId) (Event playerId)
   deriving (Eq, Show)
 
+
+type ActionM id a = Either (BadAction id) a
 
 -- | Translate a player action into a change to make to the round.
 -- Will return errors if the action is for or against an inactive or
@@ -265,41 +271,38 @@ data Result playerId =
 --
 -- If the target player is protected, will return the identity result,
 -- NoChange.
-actionToEvent :: (Ord playerId, Show playerId) => Round playerId -> Action playerId -> Either (BadAction playerId) (Event playerId)
+actionToEvent :: (Ord playerId, Show playerId) => Round playerId -> Action playerId -> ActionM playerId (Event playerId)
 actionToEvent round action@(viewAction -> (pid, _, play)) = do
   (_, sourceHand) <- getActivePlayerHand round pid
   case getTarget play of
-   Nothing -> return $ actionToEvent' sourceHand Nothing action
+   Nothing -> return $ noTarget action
    Just target -> do
      (targetPlayer, targetHand) <- getActivePlayerHand round target
      if fromJust (isProtected targetPlayer)
        then return NoChange
-       else return $ actionToEvent' sourceHand (Just targetHand) action
+       else return $ withTarget sourceHand targetHand action
 
+  where
 
--- | Given the hand of the current player, the hand of the target (if there is
--- one), and the action being played, return the change we need to make.
-actionToEvent' :: Show playerId => Card -> Maybe Card -> Action playerId -> Event playerId
-actionToEvent' _ hand (viewAction -> (_, Soldier, Guess target guess)) =
-  if fromJust hand == guess
-  then Eliminated target
-  else NoChange
-actionToEvent' _ (Just targetCard) (viewAction -> (pid, Clown, Attack target)) =
-  ForcedReveal pid target targetCard
-actionToEvent' sourceHand targetHand (viewAction -> (pid, Knight, Attack target)) =
-  case compare sourceHand (fromJust targetHand) of
-    LT -> Eliminated pid
-    EQ -> NoChange
-    GT -> Eliminated target
-actionToEvent' _ _ (viewAction -> (pid, Priestess, NoEffect)) = Protected pid
-actionToEvent' _ hand (viewAction -> (_, Wizard, Attack target)) =
-  case hand of
-    Just Prince -> Eliminated target
-    _ -> ForcedDiscard target
-actionToEvent' _ _ (viewAction -> (pid, General, Attack target)) = SwappedHands target pid
-actionToEvent' _ _ (viewAction -> (_, Minister, NoEffect)) = NoChange
-actionToEvent' _ _ (viewAction -> (pid, Prince, NoEffect)) = Eliminated pid
-actionToEvent' _ _ action = error $ Text.unpack $ "Invalid action: " ++ show action
+    noTarget (viewAction -> (_, Priestess, NoEffect)) = Protected pid
+    noTarget (viewAction -> (_, Minister, NoEffect)) = NoChange
+    noTarget (viewAction -> (_, Prince, NoEffect)) = Eliminated pid
+    noTarget _ = terror $ "We thought " ++ show action ++ " had no target."
+
+    withTarget _ targetCard (viewAction -> (_, Soldier, Guess target guess))
+      | targetCard == guess = Eliminated target
+      | otherwise = NoChange
+    withTarget _ targetCard (viewAction -> (_, Clown, Attack target)) =
+      ForcedReveal pid target targetCard
+    withTarget sourceHand targetHand (viewAction -> (_, Knight, Attack target)) =
+      case compare sourceHand targetHand of
+       LT -> Eliminated pid
+       EQ -> NoChange
+       GT -> Eliminated target
+    withTarget _ Prince (viewAction -> (_, Wizard, Attack target)) = Eliminated target
+    withTarget _ _ (viewAction -> (_, Wizard, Attack target)) = ForcedDiscard target
+    withTarget _ _ (viewAction -> (_, General, Attack target)) = SwappedHands target pid
+    withTarget _ _ _ = terror $ "Invalid action: " ++ show action
 
 
 -- XXX: Lots of these re-get players from the Round that have already been
@@ -307,7 +310,7 @@ actionToEvent' _ _ action = error $ Text.unpack $ "Invalid action: " ++ show act
 -- structure so this simply returns a Round.
 
 -- | Apply a change to the Round.
-applyEvent :: Ord playerId => Round playerId -> Event playerId -> Either (BadAction playerId) (Round playerId)
+applyEvent :: Ord playerId => Round playerId -> Event playerId -> ActionM playerId (Round playerId)
 applyEvent round NoChange = return round
 applyEvent round (Protected pid) = modifyActivePlayer round pid protect
 applyEvent round (SwappedHands pid1 pid2) = do
@@ -321,11 +324,6 @@ applyEvent round (ForcedDiscard pid) =
   let (round', card) = drawCard round in
   modifyActivePlayer round' pid (`discardAndDraw` card)
 applyEvent round (ForcedReveal {}) = return round
-
-
-maybeToEither :: e -> Maybe a -> Either e a
-maybeToEither e Nothing = Left e
-maybeToEither _ (Just a) = Right a
 
 
 -- | Play a turn in a Round.
@@ -343,39 +341,48 @@ maybeToEither _ (Just a) = Right a
 -- either a BadAction or a new Round together with the Result of the play.
 playTurn :: (Ord playerId, Show playerId)
             => Round playerId
-            -> Either (Round playerId, Result playerId)
-                      (Card -> Play playerId
-                       -> Either (BadAction playerId)
-                                 (Round playerId, Result playerId))
+            -> Either (ActionM playerId (Round playerId, Result playerId))
+                      (Card -> Play playerId -> ActionM playerId (Round playerId, Result playerId))
 playTurn round = do
-  (playerId, (dealt, hand)) <- case currentTurn round of
-                                Nothing -> Left (round, RoundOver)
-                                Just r -> return r
-  player <- case getActivePlayer round playerId of
-             Left e -> error $ Text.unpack $ "Current player is not active: " ++ show e
-             Right r -> return r
-  -- The card the player chose is now put in front of them, and the card they
-  -- didn't chose is now their hand.
+  (playerId, (dealt, hand)) <- note (Left RoundOver) (currentTurn round)
+  let player = assertRight "Current player is not active: " (getActivePlayer round playerId)
   if bustingHand dealt hand
-    then Left $ bustOut playerId dealt hand
+    then Left $ return $ bustOut playerId dealt hand
     else Right $ handlePlay playerId player dealt hand
 
   where
     handlePlay playerId player dealt hand chosen play = do
-      -- An Action is a valid player, card, play combination.
-      player' <- maybeToEither (WrongCard chosen (dealt, hand)) (playCard player dealt chosen)
-      let round' = setActivePlayer (set state Playing round) playerId player'
-      action <- case playToAction playerId chosen play of
-                 Left e -> Left $ InvalidPlay e
-                 Right a -> return a
+      player' <- note (WrongCard chosen (dealt, hand)) (playCard player dealt chosen)
+      let round' = setActivePlayer (set roundState Playing round) playerId player'
+      action <- fmapL InvalidPlay (playToAction playerId chosen play)
       result <- actionToEvent round' action
       round'' <- applyEvent round' result
       return (nextTurn round'', Played action result)
 
     bustOut pid dealt hand =
-      case modifyActivePlayer round pid (`bust` dealt) of
-       Left e -> error $ Text.unpack $ "Could not bust out player: " ++ show e
-       Right round' -> (nextTurn (set state Playing round'), BustedOut pid dealt hand)
+      let bustedRound = assertRight "Could not bust out player: "
+                                    (modifyActivePlayer round pid (`bust` dealt))
+      in (nextTurn (set roundState Playing bustedRound), BustedOut pid dealt hand)
+
+
+-- | Play a turn in a Round
+--
+-- Similar to playTurn, except that instead of splitting the turn into two
+-- phases, there is a single, optional play. If the hand is a busting hand,
+-- then the play must be Nothing; if not, the play must be specified.
+playTurn' :: (Ord playerId, Show playerId)
+             => Round playerId
+             -> Maybe (Card, Play playerId)
+             -> ActionM playerId (Round playerId, Result playerId)
+playTurn' round optionalPlay = do
+  result <- case playTurn round of
+             Left action -> action
+             Right handler -> do
+               (card, play) <- note NoPlaySpecified optionalPlay
+               handler card play
+  case (optionalPlay, result) of
+   (Just _, (_, BustedOut {})) -> throwError PlayWhenBusted
+   _ -> return result
 
 
 data Victory playerId
@@ -393,7 +400,7 @@ survivors = Map.toList . Map.mapMaybe getHand . view players
 
 -- | If the Round is Over, return the Victory data. Otherwise, Nothing.
 victory :: Round playerId -> Maybe (Victory playerId)
-victory (round@Round { _state = Over }) =
+victory (round@Round { _roundState = Over }) =
   case survivors round of
    [(pid, card)] -> Just $ SoleSurvivor pid card
    xs -> let (best:rest) = reverse (groupBy ((==) `on` snd) (sortBy (compare `on` snd) xs))
@@ -408,7 +415,7 @@ getWinners (HighestCard _ pids _) = pids
 
 -- | Update the given player in Round. If the update function returns Nothing,
 -- then that is taken to mean the player was inactive.
-modifyActivePlayer :: Ord playerId => Round playerId -> playerId -> (Player -> Player) -> Either (BadAction playerId) (Round playerId)
+modifyActivePlayer :: Ord playerId => Round playerId -> playerId -> (Player -> Player) -> ActionM playerId (Round playerId)
 modifyActivePlayer rnd pid f = setActivePlayer rnd pid <$> f <$> getActivePlayer rnd pid
 
 
@@ -423,24 +430,21 @@ setActivePlayer round pid newP =
     round' = over players (set (at pid) (Just newP)) round
     dropPlayer p =
       case dropItem1 (view playOrder round') p of
-       Left _ -> set state Over round
+       Left _ -> set roundState Over round
        Right newOrder -> set playOrder newOrder round'
 
 
 -- | Get the given player, asserting they must be active. Will return a Left
 -- if no player is found or if the requested player is inactive.
-getActivePlayer :: Ord playerId => Round playerId -> playerId -> Either (BadAction playerId) Player
+getActivePlayer :: Ord playerId => Round playerId -> playerId -> ActionM playerId Player
 getActivePlayer round pid = fst <$> getActivePlayerHand round pid
 
 
-getActivePlayerHand :: Ord playerId => Round playerId -> playerId -> Either (BadAction playerId) (Player, Card)
-getActivePlayerHand round pid =
-  case getPlayer round pid of
-   Nothing -> Left $ NoSuchPlayer pid
-   Just player ->
-     case getHand player of
-      Nothing -> Left $ InactivePlayer pid
-      Just hand -> Right (player, hand)
+getActivePlayerHand :: Ord playerId => Round playerId -> playerId -> ActionM playerId (Player, Card)
+getActivePlayerHand round pid = do
+  player <- note (NoSuchPlayer pid) (getPlayer round pid)
+  hand <- note (InactivePlayer pid) (getHand player)
+  return (player, hand)
 
 
 -- | Are all the cards in the Round?
@@ -453,7 +457,7 @@ prop_allCardsPresent =
             ++ (concatMap getDiscards . Map.elems . view players) rnd
             ++ (mapMaybe getHand . Map.elems . view players) rnd)
             ++ (
-            case _state rnd of
+            case _roundState rnd of
               Turn x -> [x]
               _ -> [])
 
@@ -471,6 +475,6 @@ prop_ringIsActivePlayers r =
 
 prop_multipleActivePlayers :: Round playerId -> Bool
 prop_multipleActivePlayers r =
-  case view state r of
+  case view roundState r of
    Over -> True
    _ -> Ring.ringSize (view playOrder r) > 1

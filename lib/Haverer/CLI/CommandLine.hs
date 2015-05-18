@@ -27,6 +27,7 @@ module Haverer.CLI.CommandLine (
   ) where
 
 import BasicPrelude hiding (round)
+import Control.Error hiding (readMay)
 
 import qualified Data.Map as Map
 
@@ -163,10 +164,10 @@ pickNumPlayers :: IO Int
 pickNumPlayers =
   repeatedlyPrompt "Pick number of players: " parseNumPlayers
   where
-    parseNumPlayers s =
-      case readMay s of
-       Nothing -> Left errMsg
-       Just i -> if 2 <= i && i <= 4 then Right i else Left errMsg
+    parseNumPlayers s = do
+      i <- note errMsg (readMay s)
+      assertErr errMsg (2 <= i && i <= 4)
+      return i
     errMsg = "Please enter a number between 2 and 4" :: Text
 
 

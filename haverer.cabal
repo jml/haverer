@@ -40,6 +40,8 @@ library
                , tasty-quickcheck
                , basic-prelude >= 0.3.13 && < 0.5
                , text >= 1.2 && < 1.3
+               , errors >= 1.4.7 && < 1.5
+               , mtl >= 2.2 && <2.3
   exposed-modules: Haverer.Action
                  , Haverer.CLI.CommandLine
                  , Haverer.CLI.Prompt
@@ -47,6 +49,7 @@ library
                  , Haverer.Engine
                  , Haverer.Game
                  , Haverer.Internal.Counter
+                 , Haverer.Internal.Error
                  , Haverer.Internal.Ring
                  , Haverer.Player
                  , Haverer.Round
@@ -82,3 +85,5 @@ test-suite test
               , containers
               , basic-prelude >= 0.3.13 && < 0.5
               , text >= 1.2 && < 1.3
+              , errors >= 1.4.7 && < 1.5
+              , mtl >= 2.2 && <2.3
