@@ -278,9 +278,9 @@ actionToEvent round action@(viewAction -> (pid, _, play)) = do
    Nothing -> return $ noTarget action
    Just target -> do
      (targetPlayer, targetHand) <- getActivePlayerHand round target
-     return $ case isProtected targetPlayer of
-      Just _ -> NoChange
-      Nothing -> withTarget sourceHand targetHand action
+     if fromJust (isProtected targetPlayer)
+       then return NoChange
+       else return $ withTarget sourceHand targetHand action
 
   where
 
