@@ -36,6 +36,7 @@ module Haverer.Player (
 
 import BasicPrelude
 import Control.Lens hiding (chosen)
+import Control.Monad.Except
 
 import Haverer.Deck (Card)
 
@@ -48,9 +49,9 @@ newtype PlayerSet a = PlayerSet { toPlayers :: [a] } deriving (Show, Eq)
 
 toPlayerSet :: Ord a => [a] -> Either (Error a) (PlayerSet a)
 toPlayerSet playerIds
-  | numPlayers /= numDistinctPlayers = Left (DuplicatePlayers playerIds)
-  | numPlayers < 2 || numPlayers > 4 = Left (InvalidNumPlayers numPlayers)
-  | otherwise = (Right . PlayerSet) playerIds
+  | numPlayers /= numDistinctPlayers = throwError (DuplicatePlayers playerIds)
+  | numPlayers < 2 || numPlayers > 4 = throwError (InvalidNumPlayers numPlayers)
+  | otherwise = (return . PlayerSet) playerIds
   where numPlayers = length playerIds
         numDistinctPlayers = (length . nub . sort) playerIds
 

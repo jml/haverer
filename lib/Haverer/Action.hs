@@ -12,7 +12,7 @@
 -- See the License for the specific language governing permissions and
 -- limitations under the License.
 
-
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE NoImplicitPrelude #-}
 
 module Haverer.Action (
@@ -27,6 +27,7 @@ module Haverer.Action (
   ) where
 
 import BasicPrelude
+import Control.Monad.Except
 
 import Haverer.Deck (Card(..))
 
@@ -57,30 +58,29 @@ getTarget (Guess target _) = Just target
 
 -- | Given a player, a card, and a choice of play, decide whether it's a valid
 -- action.
-playToAction :: Eq target => target -> Card -> Play target -> Either (BadPlay target) (Action target)
-playToAction pid card play =
-  Action pid card `fmap` _validatePlay pid card play
+playToAction :: (Eq target, MonadError (BadPlay target) m) => target -> Card -> Play target -> m (Action target)
+playToAction pid card play = Action pid card <$> _validatePlay pid card play
 
 
-_validatePlay :: Eq target => target -> Card -> Play target -> Either (BadPlay target) (Play target)
-_validatePlay _ Soldier (Guess _ Soldier) = Left BadGuess
+_validatePlay :: (Eq target, MonadError (BadPlay target) m) => target -> Card -> Play target -> m (Play target)
+_validatePlay _ Soldier (Guess _ Soldier) = throwError BadGuess
 _validatePlay player Soldier play@(Guess target _)
-  | player == target = Left SelfTarget
-  | otherwise = Right play
+  | player == target = throwError SelfTarget
+  | otherwise = return play
 _validatePlay player Clown play@(Attack target)
-  | player == target = Left SelfTarget
-  | otherwise = Right play
+  | player == target = throwError SelfTarget
+  | otherwise = return play
 _validatePlay player Knight play@(Attack target)
-  | player == target = Left SelfTarget
-  | otherwise = Right play
-_validatePlay _ Priestess NoEffect = Right NoEffect
-_validatePlay _ Wizard play@(Attack _) = Right play
+  | player == target = throwError SelfTarget
+  | otherwise = return play
+_validatePlay _ Priestess NoEffect = return NoEffect
+_validatePlay _ Wizard play@(Attack _) = return play
 _validatePlay player General play@(Attack target)
-  | player == target = Left SelfTarget
-  | otherwise = Right play
-_validatePlay _ Minister NoEffect = Right NoEffect
-_validatePlay _ Prince NoEffect = Right NoEffect
-_validatePlay _ card play = Left (BadActionForCard play card)
+  | player == target = throwError SelfTarget
+  | otherwise = return play
+_validatePlay _ Minister NoEffect = return NoEffect
+_validatePlay _ Prince NoEffect = return NoEffect
+_validatePlay _ card play = throwError (BadActionForCard play card)
 
 
 -- | Return all valid plays.
