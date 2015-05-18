@@ -260,13 +260,15 @@ data Result playerId =
   deriving (Eq, Show)
 
 
+type ActionM id a = Either (BadAction id) a
+
 -- | Translate a player action into a change to make to the round.
 -- Will return errors if the action is for or against an inactive or
 -- nonexistent player.
 --
 -- If the target player is protected, will return the identity result,
 -- NoChange.
-actionToEvent :: (Ord playerId, Show playerId) => Round playerId -> Action playerId -> Either (BadAction playerId) (Event playerId)
+actionToEvent :: (Ord playerId, Show playerId) => Round playerId -> Action playerId -> ActionM playerId (Event playerId)
 actionToEvent round action@(viewAction -> (pid, _, play)) = do
   (_, sourceHand) <- getActivePlayerHand round pid
   case getTarget play of
@@ -305,7 +307,7 @@ actionToEvent round action@(viewAction -> (pid, _, play)) = do
 -- structure so this simply returns a Round.
 
 -- | Apply a change to the Round.
-applyEvent :: Ord playerId => Round playerId -> Event playerId -> Either (BadAction playerId) (Round playerId)
+applyEvent :: Ord playerId => Round playerId -> Event playerId -> ActionM playerId (Round playerId)
 applyEvent round NoChange = return round
 applyEvent round (Protected pid) = modifyActivePlayer round pid protect
 applyEvent round (SwappedHands pid1 pid2) = do
@@ -337,9 +339,8 @@ applyEvent round (ForcedReveal {}) = return round
 playTurn :: (Ord playerId, Show playerId)
             => Round playerId
             -> Either (Round playerId, Result playerId)
-                      (Card -> Play playerId
-                       -> Either (BadAction playerId)
-                                 (Round playerId, Result playerId))
+                      (Card -> Play playerId ->
+                       ActionM playerId (Round playerId, Result playerId))
 playTurn round = do
   (playerId, (dealt, hand)) <- case currentTurn round of
                                 Nothing -> Left (round, RoundOver)
@@ -399,7 +400,7 @@ getWinners (HighestCard _ pids _) = pids
 
 -- | Update the given player in Round. If the update function returns Nothing,
 -- then that is taken to mean the player was inactive.
-modifyActivePlayer :: Ord playerId => Round playerId -> playerId -> (Player -> Player) -> Either (BadAction playerId) (Round playerId)
+modifyActivePlayer :: Ord playerId => Round playerId -> playerId -> (Player -> Player) -> ActionM playerId (Round playerId)
 modifyActivePlayer rnd pid f = setActivePlayer rnd pid <$> f <$> getActivePlayer rnd pid
 
 
@@ -420,11 +421,11 @@ setActivePlayer round pid newP =
 
 -- | Get the given player, asserting they must be active. Will return a Left
 -- if no player is found or if the requested player is inactive.
-getActivePlayer :: Ord playerId => Round playerId -> playerId -> Either (BadAction playerId) Player
+getActivePlayer :: Ord playerId => Round playerId -> playerId -> ActionM playerId Player
 getActivePlayer round pid = fst <$> getActivePlayerHand round pid
 
 
-getActivePlayerHand :: Ord playerId => Round playerId -> playerId -> Either (BadAction playerId) (Player, Card)
+getActivePlayerHand :: Ord playerId => Round playerId -> playerId -> ActionM playerId (Player, Card)
 getActivePlayerHand round pid = do
   player <- note (NoSuchPlayer pid) (getPlayer round pid)
   hand <- note (InactivePlayer pid) (getHand player)
