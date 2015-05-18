@@ -342,9 +342,7 @@ playTurn :: (Ord playerId, Show playerId)
                       (Card -> Play playerId ->
                        ActionM playerId (Round playerId, Result playerId))
 playTurn round = do
-  (playerId, (dealt, hand)) <- case currentTurn round of
-                                Nothing -> Left (round, RoundOver)
-                                Just r -> return r
+  (playerId, (dealt, hand)) <- note (round, RoundOver) (currentTurn round)
   let player = assertRight "Current player is not active: " (getActivePlayer round playerId)
   -- The card the player chose is now put in front of them, and the card they
   -- didn't chose is now their hand.
@@ -357,9 +355,7 @@ playTurn round = do
       -- An Action is a valid player, card, play combination.
       player' <- note (WrongCard chosen (dealt, hand)) (playCard player dealt chosen)
       let round' = setActivePlayer (set state Playing round) playerId player'
-      action <- case playToAction playerId chosen play of
-                 Left e -> Left $ InvalidPlay e
-                 Right a -> return a
+      action <- fmapL InvalidPlay (playToAction playerId chosen play)
       result <- actionToEvent round' action
       round'' <- applyEvent round' result
       return (nextTurn round'', Played action result)
