@@ -22,6 +22,7 @@ module Haverer.Round (
   Round
   , makeRound
   , playTurn
+  , playTurn'
 
     -- The results of playTurn
   , BadAction
@@ -228,6 +229,8 @@ data BadAction playerId = NoSuchPlayer playerId
                         | InactivePlayer playerId
                         | InvalidPlay (BadPlay playerId)
                         | WrongCard Card (Card, Card)
+                        | PlayWhenBusted
+                        | NoPlaySpecified
                         deriving Show
 
 
@@ -344,15 +347,12 @@ playTurn :: (Ord playerId, Show playerId)
 playTurn round = do
   (playerId, (dealt, hand)) <- note (round, RoundOver) (currentTurn round)
   let player = assertRight "Current player is not active: " (getActivePlayer round playerId)
-  -- The card the player chose is now put in front of them, and the card they
-  -- didn't chose is now their hand.
   if bustingHand dealt hand
     then Left $ bustOut playerId dealt hand
     else Right $ handlePlay playerId player dealt hand
 
   where
     handlePlay playerId player dealt hand chosen play = do
-      -- An Action is a valid player, card, play combination.
       player' <- note (WrongCard chosen (dealt, hand)) (playCard player dealt chosen)
       let round' = setActivePlayer (set state Playing round) playerId player'
       action <- fmapL InvalidPlay (playToAction playerId chosen play)
@@ -364,6 +364,26 @@ playTurn round = do
       let bustedRound = assertRight "Could not bust out player: "
                                     (modifyActivePlayer round pid (`bust` dealt))
       in (nextTurn (set state Playing bustedRound), BustedOut pid dealt hand)
+
+
+-- | Play a turn in a Round
+--
+-- Similar to playTurn, except that instead of splitting the turn into two
+-- phases, there is a single, optional play. If the hand is a busting hand,
+-- then the play must be Nothing; if not, the play must be specified.
+playTurn' :: (Ord playerId, Show playerId)
+             => Round playerId
+             -> Maybe (Card, Play playerId)
+             -> ActionM playerId (Round playerId, Result playerId)
+playTurn' round optionalPlay =
+  case playTurn round of
+   Left (round', result@(BustedOut {})) -> do
+     assertErr PlayWhenBusted (isNothing optionalPlay)
+     return (round', result)
+   Left result -> return result
+   Right handler -> do
+     (card, play) <- note NoPlaySpecified optionalPlay
+     handler card play
 
 
 data Victory playerId
