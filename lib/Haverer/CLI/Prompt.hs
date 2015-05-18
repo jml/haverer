@@ -21,6 +21,7 @@ module Haverer.CLI.Prompt where
 
 import BasicPrelude
 
+import Control.Error hiding (readMay)
 import qualified Data.Text as Text
 import System.IO (hFlush, stdout)
 
@@ -57,10 +58,6 @@ repeatedlyPrompt promptStr parser = do
    Right r -> return r
 
 
-at :: [a] -> Int -> Maybe a
-at xs i = if 0 <= i && i < length xs then Just (xs !! i) else Nothing
-
-
 chooseItem :: ConsoleText a => Text -> [a] -> IO a
 chooseItem promptStr = chooseItem' promptStr 1
 
@@ -73,11 +70,7 @@ chooseItem' promptStr startIndex items =
       promptStr ++ "\n" ++
       intercalate "\n" [toText (i :: Int) ++ ". " ++ toText x | (i, x) <- zip [startIndex ..] items]
       ++ "\n>>> "
-    pickItem xs chosen =
-      case readMay chosen of
-       Nothing -> Left errMsg
-       Just i ->
-         case xs `at` (i - startIndex) of
-          Nothing -> Left errMsg
-          Just x -> return x
+    pickItem xs chosen = note errMsg $ do
+      i <- readMay chosen
+      xs `atMay` (i - startIndex)
     errMsg = "Please select an item from the list" :: Text
