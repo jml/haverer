@@ -18,7 +18,13 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 
-module Haverer.Testing where
+module Haverer.Testing ( PlayerId
+                       , inRoundEvent
+                       , playTurn'
+                       , randomRound
+                       , randomRounds
+                       , shuffled
+                       ) where
 
 import BasicPrelude hiding (round)
 
