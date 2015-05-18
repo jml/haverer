@@ -54,6 +54,7 @@ module Haverer.Round (
 import BasicPrelude hiding (round)
 
 import Control.Error
+import Control.Monad.Except
 import Control.Lens hiding (chosen)
 
 import Data.Maybe (fromJust)
@@ -231,6 +232,7 @@ data BadAction playerId = NoSuchPlayer playerId
                         | WrongCard Card (Card, Card)
                         | PlayWhenBusted
                         | NoPlaySpecified
+                        | RoundOver
                         deriving Show
 
 
@@ -257,9 +259,7 @@ data Result playerId =
   -- another high card, and thus didn't get to play.
   BustedOut playerId Card Card |
   -- | The player performed an Action resulting in Event.
-  Played (Action playerId) (Event playerId) |
-  -- | The round was already over.
-  RoundOver
+  Played (Action playerId) (Event playerId)
   deriving (Eq, Show)
 
 
@@ -341,14 +341,13 @@ applyEvent round (ForcedReveal {}) = return round
 -- either a BadAction or a new Round together with the Result of the play.
 playTurn :: (Ord playerId, Show playerId)
             => Round playerId
-            -> Either (Round playerId, Result playerId)
-                      (Card -> Play playerId ->
-                       ActionM playerId (Round playerId, Result playerId))
+            -> Either (ActionM playerId (Round playerId, Result playerId))
+                      (Card -> Play playerId -> ActionM playerId (Round playerId, Result playerId))
 playTurn round = do
-  (playerId, (dealt, hand)) <- note (round, RoundOver) (currentTurn round)
+  (playerId, (dealt, hand)) <- note (Left RoundOver) (currentTurn round)
   let player = assertRight "Current player is not active: " (getActivePlayer round playerId)
   if bustingHand dealt hand
-    then Left $ bustOut playerId dealt hand
+    then Left $ return $ bustOut playerId dealt hand
     else Right $ handlePlay playerId player dealt hand
 
   where
@@ -375,15 +374,15 @@ playTurn' :: (Ord playerId, Show playerId)
              => Round playerId
              -> Maybe (Card, Play playerId)
              -> ActionM playerId (Round playerId, Result playerId)
-playTurn' round optionalPlay =
-  case playTurn round of
-   Left (round', result@(BustedOut {})) -> do
-     assertErr PlayWhenBusted (isNothing optionalPlay)
-     return (round', result)
-   Left result -> return result
-   Right handler -> do
-     (card, play) <- note NoPlaySpecified optionalPlay
-     handler card play
+playTurn' round optionalPlay = do
+  result <- case playTurn round of
+             Left action -> action
+             Right handler -> do
+               (card, play) <- note NoPlaySpecified optionalPlay
+               handler card play
+  case (optionalPlay, result) of
+   (Just _, (_, BustedOut {})) -> throwError PlayWhenBusted
+   _ -> return result
 
 
 data Victory playerId

@@ -23,7 +23,6 @@ module Haverer.Testing where
 import BasicPrelude hiding (round)
 
 import Data.Maybe (fromJust)
-
 import qualified System.Random.Shuffle as Shuffle
 import Test.Tasty.QuickCheck
 
@@ -66,19 +65,18 @@ instance Arbitrary (Round PlayerId) where
 -- | For a Round and a known-good Card and Play, play the cards and return the
 -- round and event. If the hand busts out, Card and Play are ignored.
 playTurn' :: (Ord a, Show a) => Round a -> Card -> Play a -> (Round a, Result a)
-playTurn' round card play =
+playTurn' round card play = assertRight "Should have generated valid play: " $
   case playTurn round of
-   Left (round', event) -> (round', event)
-   Right handlePlay ->
-     assertRight "Should have generated valid play: " (handlePlay card play)
+   Left action -> action
+   Right handler -> handler card play
 
 
-playRandomTurn :: (Ord a, Show a) => Round a -> Gen (Round a, Result a)
+playRandomTurn :: (Ord a, Show a) => Round a -> Gen (Maybe (Round a, Result a))
 playRandomTurn round = do
   move <- randomCardPlay round
   case move of
-   Nothing -> return (round, RoundOver)
-   Just (card, play) -> return $ playTurn' round card play
+   Nothing -> return Nothing
+   Just (card, play) -> return $ Just $ playTurn' round card play
   where
     randomCardPlay round' =
       case getValidMoves round' of
@@ -90,7 +88,11 @@ playRandomTurn round = do
 -- a possible next Round. If there are no valid moves, then return the same
 -- Round.
 randomNextMove :: (Ord a, Show a) => Round a -> Gen (Round a)
-randomNextMove round = fst <$> playRandomTurn round
+randomNextMove round = do
+  result <- playRandomTurn round
+  case result of
+   Nothing -> return round
+   Just (round', _) -> return round'
 
 
 -- | Generate a sequence of N rounds, starting from an initial round.
