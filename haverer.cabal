@@ -49,6 +49,7 @@ library
                  , Haverer.Engine
                  , Haverer.Game
                  , Haverer.Internal.Counter
+                 , Haverer.Internal.Error
                  , Haverer.Internal.Ring
                  , Haverer.Player
                  , Haverer.Round

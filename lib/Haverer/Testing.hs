@@ -38,7 +38,7 @@ import Haverer.Round (
   , playTurn
   )
 import Haverer.ValidMoves (getValidMoves)
-
+import Haverer.Internal.Error (assertRight)
 
 
 type PlayerId = Int
@@ -55,9 +55,7 @@ instance Arbitrary (PlayerSet PlayerId) where
     makePlayerSet <$> elements [2, 3, 4]
     where
       makePlayerSet n =
-        case toPlayerSet $ take n [1..] of
-         Left e -> error $ Text.unpack $ "Couldn't make set: " ++ show e
-         Right s -> s
+        assertRight "Couldn't make set: " (toPlayerSet $ take n [1..])
 
 
 instance Arbitrary (Round PlayerId) where

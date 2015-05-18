@@ -20,8 +20,6 @@
 
 import BasicPrelude hiding (round)
 
-import qualified Data.Text as Text
-
 import qualified Haverer.Engine as E
 import qualified Haverer.Game as Game
 import Haverer.Player (toPlayerSet)
@@ -35,14 +33,14 @@ import Haverer.CLI.CommandLine (
   )
 import Haverer.CLI.Prompt (underline)
 
+import Haverer.Internal.Error (assertRight)
+
 
 main :: IO ()
 main = do
   result <- pickNumPlayers
-  players <-
-    case makePlayerSet result of
-     Right set -> return set
-     Left e -> error $ Text.unpack $ "Couldn't make set for "++ show result ++ " players: " ++ show e
+  let players = assertRight ("Couldn't make set for "++ show result ++ " players: ")
+                            (makePlayerSet result)
 
   void $ E.playGame players
   where makePlayerSet n = toPlayerSet $ take n $ map PlayerId [1..]

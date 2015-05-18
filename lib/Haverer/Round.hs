@@ -86,6 +86,7 @@ import Haverer.Player (
   unprotect
   )
 
+import Haverer.Internal.Error (assertRight)
 import Haverer.Internal.Ring (Ring, advance1, currentItem, dropItem1, makeRing, nextItem)
 import qualified Haverer.Internal.Ring as Ring
 
@@ -212,9 +213,9 @@ nextTurn round =
      case advance1 (view playOrder round) of
       Left _ -> set state Over round
       Right newPlayOrder ->
-        case modifyActivePlayer round' pid unprotect of
-         Left e -> error $ Text.unpack $ "Couldn't unprotect current player: " ++ show e
-         Right round'' -> set playOrder newPlayOrder round''
+        let round'' = assertRight "Couldn't unprotect current player: "
+                      (modifyActivePlayer round' pid unprotect) in
+         set playOrder newPlayOrder round''
 
 
 drawCard' :: Round playerId -> Round playerId
@@ -347,9 +348,7 @@ playTurn round = do
   (playerId, (dealt, hand)) <- case currentTurn round of
                                 Nothing -> Left (round, RoundOver)
                                 Just r -> return r
-  player <- case getActivePlayer round playerId of
-             Left e -> error $ Text.unpack $ "Current player is not active: " ++ show e
-             Right r -> return r
+  let player = assertRight "Current player is not active: " (getActivePlayer round playerId)
   -- The card the player chose is now put in front of them, and the card they
   -- didn't chose is now their hand.
   if bustingHand dealt hand
@@ -369,9 +368,9 @@ playTurn round = do
       return (nextTurn round'', Played action result)
 
     bustOut pid dealt hand =
-      case modifyActivePlayer round pid (`bust` dealt) of
-       Left e -> error $ Text.unpack $ "Could not bust out player: " ++ show e
-       Right round' -> (nextTurn (set state Playing round'), BustedOut pid dealt hand)
+      let bustedRound = assertRight "Could not bust out player: "
+                                    (modifyActivePlayer round pid (`bust` dealt))
+      in (nextTurn (set state Playing bustedRound), BustedOut pid dealt hand)
 
 
 data Victory playerId
