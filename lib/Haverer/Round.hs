@@ -428,13 +428,10 @@ getActivePlayer round pid = fst <$> getActivePlayerHand round pid
 
 
 getActivePlayerHand :: Ord playerId => Round playerId -> playerId -> Either (BadAction playerId) (Player, Card)
-getActivePlayerHand round pid =
-  case getPlayer round pid of
-   Nothing -> Left $ NoSuchPlayer pid
-   Just player ->
-     case getHand player of
-      Nothing -> Left $ InactivePlayer pid
-      Just hand -> Right (player, hand)
+getActivePlayerHand round pid = do
+  player <- note (NoSuchPlayer pid) (getPlayer round pid)
+  hand <- note (InactivePlayer pid) (getHand player)
+  return (player, hand)
 
 
 -- | Are all the cards in the Round?
