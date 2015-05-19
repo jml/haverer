@@ -171,25 +171,30 @@ nextTurn :: (Show playerId, Ord playerId) => Round playerId -> Round playerId
 nextTurn round =
   case view roundState round of
    Over -> round
-   NotStarted -> execState drawCard' round
    Turn _ -> terror "Cannot advance to next turn while waiting for play."
+   NotStarted -> flip execState round $ do
+     card <- drawCard
+     assign roundState $ case card of
+       Just card' -> Turn card'
+       Nothing -> Over  -- XXX: Not actually possible.
    Playing ->
-     let round' = execState drawCard' round in
-     case nextPlayer round' of
-      Nothing -> set roundState Over round
-      Just pid ->
-        case advance1 (view playOrder round) of
-         Left _ -> set roundState Over round
-         Right newPlayOrder ->
-           let round'' = assertRight "Couldn't unprotect current player: "
-                         (modifyActivePlayer round' pid unprotect) in
-           set playOrder newPlayOrder round''
+     -- To advance to the next turn we need to make sure that there are cards
+     -- in the deck and that there is more than one player.
+     fromMaybe (set roundState Over round) $ do
+       (card', round') <- guardState $ runState drawCard round
+       newPlayOrder <- hush $ advance1 (view playOrder round)
+       -- You lose all protection when your turn begins
+       let pid = currentItem newPlayOrder
+           round'' = assertRight "Couldn't unprotect current player: "
+                     (modifyActivePlayer round' pid unprotect)
+       return $ flip execState round'' $ do
+         assign roundState (Turn card')
+         assign playOrder newPlayOrder
   where
-    drawCard' = do
-      card <- drawCard
-      assign roundState $ case card of
-        Just card' -> Turn card'
-        Nothing -> Over
+    -- XXX: I think if I understood monad transformers better I might not need
+    -- this.
+    guardState :: Functor m => (m a, s) -> m (a, s)
+    guardState value = flip (,) (snd value) <$> fst value
 
 
 -- | The ID of the current player. If the Round is over or not started, this
