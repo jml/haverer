@@ -168,33 +168,35 @@ drawCard = do
 
 -- | Progress the Round to the next turn.
 nextTurn :: (Show playerId, Ord playerId) => Round playerId -> Round playerId
-nextTurn round =
-  case view roundState round of
-   Over -> round
+nextTurn round = flip execState round $ do
+  current <- use roundState
+  case current of
+   Over -> return ()
    Turn _ -> terror "Cannot advance to next turn while waiting for play."
-   NotStarted -> flip execState round $ do
+   NotStarted -> do
      card <- drawCard
      assign roundState $ case card of
        Just card' -> Turn card'
        Nothing -> Over  -- XXX: Not actually possible.
-   Playing ->
+   Playing -> do
      -- To advance to the next turn we need to make sure that there are cards
      -- in the deck and that there is more than one player.
-     fromMaybe (set roundState Over round) $ do
-       (card', round') <- guardState $ runState drawCard round
-       newPlayOrder <- hush $ advance1 (view playOrder round)
-       -- You lose all protection when your turn begins
-       let pid = currentItem newPlayOrder
-           round'' = assertRight "Couldn't unprotect current player: "
-                     (modifyActivePlayer round' pid unprotect)
-       return $ flip execState round'' $ do
-         assign roundState (Turn card')
-         assign playOrder newPlayOrder
+     card <- drawCard
+     newPlayOrder <- advance1 <$> use playOrder
+     case (card, newPlayOrder) of
+      (Nothing, _) -> end round
+      (_, Left _) -> end round
+      (Just card', Right newPlayOrder') -> do
+        modify $ unprotectPlayer (currentItem newPlayOrder')
+        assign roundState (Turn card')
+        assign playOrder newPlayOrder'
   where
-    -- XXX: I think if I understood monad transformers better I might not need
-    -- this.
-    guardState :: Functor m => (m a, s) -> m (a, s)
-    guardState value = flip (,) (snd value) <$> fst value
+    end :: Round playerId -> State (Round playerId) ()
+    end rnd = do
+      put rnd
+      assign roundState Over
+    unprotectPlayer pid rnd = assertRight "Couldn't unprotect current player: "
+                              (modifyActivePlayer rnd pid unprotect)
 
 
 -- | The ID of the current player. If the Round is over or not started, this
