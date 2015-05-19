@@ -55,6 +55,7 @@ import BasicPrelude hiding (round)
 
 import Control.Error
 import Control.Monad.Except
+import Control.Monad.State
 import Control.Lens hiding (chosen)
 
 import Data.Maybe (fromJust)
@@ -158,10 +159,37 @@ getPlayer round pid = view (players . at pid) round
 
 
 -- | Draw a card from the top of the Deck. Returns the card and a new Round.
-drawCard :: Round playerId -> (Maybe Card, Round playerId)
-drawCard r =
-  let (card, stack') = pop (view stack r) in
-  (card, set stack stack' r)
+drawCard :: Monad m => StateT (Round playerId) m (Maybe Card)
+drawCard = do
+  (card, stack') <- pop <$> use stack
+  assign stack stack'
+  return card
+
+drawCard' :: Monad m => StateT (Round playerId) m ()
+drawCard' = do
+  card <- drawCard
+  assign roundState $ case card of
+   Just card' -> Turn card'
+   Nothing -> Over
+
+
+-- | Progress the Round to the next turn.
+nextTurn :: (Show playerId, Ord playerId) => Round playerId -> Round playerId
+nextTurn round@(Round { _roundState = Over }) = round
+nextTurn round@(Round { _roundState = NotStarted }) = execState drawCard' round
+nextTurn (Round { _roundState = Turn _ } ) =
+  error "Cannot advance to next turn while waiting for play."
+nextTurn round =
+  let round' = execState drawCard' round in
+  case nextPlayer round' of
+   Nothing -> set roundState Over round
+   Just pid ->
+     case advance1 (view playOrder round) of
+      Left _ -> set roundState Over round
+      Right newPlayOrder ->
+        let round'' = assertRight "Couldn't unprotect current player: "
+                      (modifyActivePlayer round' pid unprotect) in
+         set playOrder newPlayOrder round''
 
 
 -- | The ID of the current player. If the Round is over or not started, this
@@ -195,35 +223,6 @@ nextPlayer rnd =
    Turn _ -> Just $ nextItem playOrder'
    Playing -> Just $ nextItem playOrder'
   where playOrder' = view playOrder rnd
-
-
--- XXX: Would using a State monad make any of this code better?
-
-
--- | Progress the Round to the next turn.
-nextTurn :: (Show playerId, Ord playerId) => Round playerId -> Round playerId
-nextTurn round@(Round { _roundState = Over }) = round
-nextTurn round@(Round { _roundState = NotStarted }) = drawCard' round
-nextTurn (Round { _roundState = Turn _ } ) =
-  error "Cannot advance to next turn while waiting for play."
-nextTurn round =
-  let round' = drawCard' round in
-  case nextPlayer round' of
-   Nothing -> set roundState Over round
-   Just pid ->
-     case advance1 (view playOrder round) of
-      Left _ -> set roundState Over round
-      Right newPlayOrder ->
-        let round'' = assertRight "Couldn't unprotect current player: "
-                      (modifyActivePlayer round' pid unprotect) in
-         set playOrder newPlayOrder round''
-
-
-drawCard' :: Round playerId -> Round playerId
-drawCard' round =
-  case drawCard round of
-   (Just card, round') -> set roundState (Turn card) round'
-   _ -> set roundState Over round
 
 
 data BadAction playerId = NoSuchPlayer playerId
@@ -321,7 +320,7 @@ applyEvent round (SwappedHands pid1 pid2) = do
    where replace pid p rnd = setActivePlayer rnd pid p
 applyEvent round (Eliminated pid) = modifyActivePlayer round pid eliminate
 applyEvent round (ForcedDiscard pid) =
-  let (card, round') = drawCard round in
+  let (card, round') = runState drawCard round in
   modifyActivePlayer round' pid (`discardAndDraw` card)
 applyEvent round (ForcedReveal {}) = return round
 
