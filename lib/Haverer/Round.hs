@@ -55,6 +55,7 @@ import BasicPrelude hiding (round)
 
 import Control.Error
 import Control.Monad.Except
+import Control.Monad.State
 import Control.Lens hiding (chosen)
 
 import Data.Maybe (fromJust)
@@ -112,10 +113,10 @@ makeLenses ''Round
 makeRound :: (Ord playerId, Show playerId) => Deck Complete -> PlayerSet playerId -> Round playerId
 makeRound deck playerSet =
   nextTurn $ case deal deck (length playerList) of
-   (remainder, Just cards) ->
+   (Just cards, remainder) ->
      case pop remainder of
-      (_, Nothing) -> terror ("Not enough cards for burn: " ++ show deck)
-      (stack', Just burn') -> Round {
+      (Nothing, _) -> terror ("Not enough cards for burn: " ++ show deck)
+      (Just burn', stack') -> Round {
         _stack = stack',
         _playOrder = fromJust (makeRing playerList),
         _players = Map.fromList $ zip playerList (map makePlayer cards),
@@ -158,10 +159,44 @@ getPlayer round pid = view (players . at pid) round
 
 
 -- | Draw a card from the top of the Deck. Returns the card and a new Round.
-drawCard :: Round playerId -> (Round playerId, Maybe Card)
-drawCard r =
-  let (stack', card) = pop (view stack r) in
-  (set stack stack' r, card)
+drawCard :: Monad m => StateT (Round playerId) m (Maybe Card)
+drawCard = do
+  (card, stack') <- pop <$> use stack
+  assign stack stack'
+  return card
+
+
+-- | Progress the Round to the next turn.
+nextTurn :: (Show playerId, Ord playerId) => Round playerId -> Round playerId
+nextTurn round = flip execState round $ do
+  current <- use roundState
+  case current of
+   Over -> return ()
+   Turn _ -> terror "Cannot advance to next turn while waiting for play."
+   NotStarted -> do
+     card <- drawCard
+     assign roundState $ case card of
+       Just card' -> Turn card'
+       Nothing -> Over  -- XXX: Not actually possible.
+   Playing -> do
+     -- To advance to the next turn we need to make sure that there are cards
+     -- in the deck and that there is more than one player.
+     card <- drawCard
+     newPlayOrder <- advance1 <$> use playOrder
+     case (card, newPlayOrder) of
+      (Nothing, _) -> end round
+      (_, Left _) -> end round
+      (Just card', Right newPlayOrder') -> do
+        modify $ unprotectPlayer (currentItem newPlayOrder')
+        assign roundState (Turn card')
+        assign playOrder newPlayOrder'
+  where
+    end :: Round playerId -> State (Round playerId) ()
+    end rnd = do
+      put rnd
+      assign roundState Over
+    unprotectPlayer pid rnd = assertRight "Couldn't unprotect current player: "
+                              (modifyActivePlayer rnd pid unprotect)
 
 
 -- | The ID of the current player. If the Round is over or not started, this
@@ -195,35 +230,6 @@ nextPlayer rnd =
    Turn _ -> Just $ nextItem playOrder'
    Playing -> Just $ nextItem playOrder'
   where playOrder' = view playOrder rnd
-
-
--- XXX: Would using a State monad make any of this code better?
-
-
--- | Progress the Round to the next turn.
-nextTurn :: (Show playerId, Ord playerId) => Round playerId -> Round playerId
-nextTurn round@(Round { _roundState = Over }) = round
-nextTurn round@(Round { _roundState = NotStarted }) = drawCard' round
-nextTurn (Round { _roundState = Turn _ } ) =
-  error "Cannot advance to next turn while waiting for play."
-nextTurn round =
-  let round' = drawCard' round in
-  case nextPlayer round' of
-   Nothing -> set roundState Over round
-   Just pid ->
-     case advance1 (view playOrder round) of
-      Left _ -> set roundState Over round
-      Right newPlayOrder ->
-        let round'' = assertRight "Couldn't unprotect current player: "
-                      (modifyActivePlayer round' pid unprotect) in
-         set playOrder newPlayOrder round''
-
-
-drawCard' :: Round playerId -> Round playerId
-drawCard' round =
-  case drawCard round of
-   (round', Just card) -> set roundState (Turn card) round'
-   _ -> set roundState Over round
 
 
 data BadAction playerId = NoSuchPlayer playerId
@@ -321,7 +327,7 @@ applyEvent round (SwappedHands pid1 pid2) = do
    where replace pid p rnd = setActivePlayer rnd pid p
 applyEvent round (Eliminated pid) = modifyActivePlayer round pid eliminate
 applyEvent round (ForcedDiscard pid) =
-  let (round', card) = drawCard round in
+  let (card, round') = runState drawCard round in
   modifyActivePlayer round' pid (`discardAndDraw` card)
 applyEvent round (ForcedReveal {}) = return round
 
@@ -341,8 +347,8 @@ applyEvent round (ForcedReveal {}) = return round
 -- either a BadAction or a new Round together with the Result of the play.
 playTurn :: (Ord playerId, Show playerId)
             => Round playerId
-            -> Either (ActionM playerId (Round playerId, Result playerId))
-                      (Card -> Play playerId -> ActionM playerId (Round playerId, Result playerId))
+            -> Either (ActionM playerId (Result playerId, Round playerId))
+                      (Card -> Play playerId -> ActionM playerId (Result playerId, Round playerId))
 playTurn round = do
   (playerId, (dealt, hand)) <- note (Left RoundOver) (currentTurn round)
   let player = assertRight "Current player is not active: " (getActivePlayer round playerId)
@@ -357,12 +363,12 @@ playTurn round = do
       action <- fmapL InvalidPlay (playToAction playerId chosen play)
       result <- actionToEvent round' action
       round'' <- applyEvent round' result
-      return (nextTurn round'', Played action result)
+      return (Played action result, nextTurn round'')
 
     bustOut pid dealt hand =
       let bustedRound = assertRight "Could not bust out player: "
                                     (modifyActivePlayer round pid (`bust` dealt))
-      in (nextTurn (set roundState Playing bustedRound), BustedOut pid dealt hand)
+      in (BustedOut pid dealt hand, nextTurn (set roundState Playing bustedRound))
 
 
 -- | Play a turn in a Round
@@ -373,7 +379,7 @@ playTurn round = do
 playTurn' :: (Ord playerId, Show playerId)
              => Round playerId
              -> Maybe (Card, Play playerId)
-             -> ActionM playerId (Round playerId, Result playerId)
+             -> ActionM playerId (Result playerId, Round playerId)
 playTurn' round optionalPlay = do
   result <- case playTurn round of
              Left action -> action
@@ -381,7 +387,7 @@ playTurn' round optionalPlay = do
                (card, play) <- note NoPlaySpecified optionalPlay
                handler card play
   case (optionalPlay, result) of
-   (Just _, (_, BustedOut {})) -> throwError PlayWhenBusted
+   (Just _, (BustedOut {}, _)) -> throwError PlayWhenBusted
    _ -> return result
 
 
@@ -430,7 +436,7 @@ setActivePlayer round pid newP =
     round' = over players (set (at pid) (Just newP)) round
     dropPlayer p =
       case dropItem1 (view playOrder round') p of
-       Left _ -> set roundState Over round
+       Left _ -> set roundState Over round'
        Right newOrder -> set playOrder newOrder round'
 
 

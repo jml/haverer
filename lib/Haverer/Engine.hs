@@ -62,7 +62,7 @@ class Monad m => MonadEngine m playerId where
   handOver _ = return ()
 
 
-playGame :: (Ord playerId, Show playerId, Functor m, MonadRandom m, MonadEngine m playerId) => PlayerSet playerId -> m (Game.Outcome playerId)
+playGame :: (Ord playerId, Show playerId, MonadRandom m, MonadEngine m playerId) => PlayerSet playerId -> m (Game.Outcome playerId)
 playGame players = do
   let game = Game.makeGame players
   gameStarted game
@@ -71,7 +71,7 @@ playGame players = do
   return outcome
 
 
-playGame' :: (Show playerId, Ord playerId, Functor m, MonadRandom m, MonadEngine m playerId) => Game.Game playerId -> m (Game.Outcome playerId)
+playGame' :: (Show playerId, Ord playerId, MonadRandom m, MonadEngine m playerId) => Game.Game playerId -> m (Game.Outcome playerId)
 playGame' game = do
   round <- Game.newRound game
   roundStarted game round
@@ -96,12 +96,12 @@ playHand players r =
    Nothing -> return Nothing
    Just (player, (dealt, hand)) -> do
      handStarted r
-     (round', event) <- getPlay players r player dealt hand
+     (event, round') <- getPlay players r player dealt hand
      handOver event
      return $ Just round'
 
 
-getPlay :: (Ord playerId, Show playerId, MonadEngine m playerId) => PlayerSet playerId -> Round.Round playerId -> playerId -> Card -> Card -> m (Round.Round playerId, Round.Result playerId)
+getPlay :: (Ord playerId, Show playerId, MonadEngine m playerId) => PlayerSet playerId -> Round.Round playerId -> playerId -> Card -> Card -> m (Round.Result playerId, Round.Round playerId)
 getPlay players round player dealt hand = do
   result <- case Round.playTurn round of
              Left r -> return r
@@ -112,4 +112,4 @@ getPlay players round player dealt hand = do
    Left err -> do
      badPlay err
      getPlay players round player dealt hand
-   Right (round', event) -> return (round', event)
+   Right (event, round') -> return (event, round')
