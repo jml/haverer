@@ -434,7 +434,7 @@ setActivePlayer round pid newP =
     round' = over players (set (at pid) (Just newP)) round
     dropPlayer p =
       case dropItem1 (view playOrder round') p of
-       Left _ -> set roundState Over round
+       Left _ -> set roundState Over round'
        Right newOrder -> set playOrder newOrder round'
 
 
