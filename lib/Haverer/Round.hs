@@ -165,31 +165,31 @@ drawCard = do
   assign stack stack'
   return card
 
-drawCard' :: Monad m => StateT (Round playerId) m ()
-drawCard' = do
-  card <- drawCard
-  assign roundState $ case card of
-   Just card' -> Turn card'
-   Nothing -> Over
-
 
 -- | Progress the Round to the next turn.
 nextTurn :: (Show playerId, Ord playerId) => Round playerId -> Round playerId
-nextTurn round@(Round { _roundState = Over }) = round
-nextTurn round@(Round { _roundState = NotStarted }) = execState drawCard' round
-nextTurn (Round { _roundState = Turn _ } ) =
-  error "Cannot advance to next turn while waiting for play."
 nextTurn round =
-  let round' = execState drawCard' round in
-  case nextPlayer round' of
-   Nothing -> set roundState Over round
-   Just pid ->
-     case advance1 (view playOrder round) of
-      Left _ -> set roundState Over round
-      Right newPlayOrder ->
-        let round'' = assertRight "Couldn't unprotect current player: "
-                      (modifyActivePlayer round' pid unprotect) in
-         set playOrder newPlayOrder round''
+  case view roundState round of
+   Over -> round
+   NotStarted -> execState drawCard' round
+   Turn _ -> terror "Cannot advance to next turn while waiting for play."
+   Playing ->
+     let round' = execState drawCard' round in
+     case nextPlayer round' of
+      Nothing -> set roundState Over round
+      Just pid ->
+        case advance1 (view playOrder round) of
+         Left _ -> set roundState Over round
+         Right newPlayOrder ->
+           let round'' = assertRight "Couldn't unprotect current player: "
+                         (modifyActivePlayer round' pid unprotect) in
+           set playOrder newPlayOrder round''
+  where
+    drawCard' = do
+      card <- drawCard
+      assign roundState $ case card of
+        Just card' -> Turn card'
+        Nothing -> Over
 
 
 -- | The ID of the current player. If the Round is over or not started, this
