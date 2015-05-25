@@ -20,6 +20,7 @@ module Haverer (
   Game,
   makeGame,
   newRound,
+  newRound',
   players,
   roundsPlayed,
   finalScores,
@@ -27,9 +28,8 @@ module Haverer (
   winners,
   Round,
   BadAction,
-  Result,
-  getDiscards,
-  getHand,
+  Result(..),
+  Event(..),
   playTurn,
   playTurn',
   getPlayers,
@@ -37,21 +37,28 @@ module Haverer (
   currentPlayer,
   currentTurn,
   Card(..),
+  Deck,
+  Complete,
+  newDeck,
   Play(..),
+  viewAction,
   Player,
+  getDiscards,
+  getHand,
   isProtected,
   toPlayers,
   toPlayerSet,
   ) where
 
 
-import Haverer.Action (Play(..))
-import Haverer.Deck (Card(..))
+import Haverer.Action (Play(..), viewAction)
+import Haverer.Deck (Card(..), Complete, Deck, newDeck)
 import Haverer.Game (
   Game,
   finalScores,
   makeGame,
   newRound,
+  newRound',
   players,
   roundsPlayed,
   scores,
@@ -65,8 +72,9 @@ import Haverer.Player (
   toPlayerSet)
 import Haverer.Round (
   BadAction,
-  Result,
+  Result(..),
   Round,
+  Event(..),
   currentPlayer,
   currentTurn,
   getPlayers,

@@ -21,6 +21,7 @@ module Haverer.Game (
   finalScores,
   makeGame,
   newRound,
+  newRound',
   players,
   playersWon,
   roundsPlayed,
