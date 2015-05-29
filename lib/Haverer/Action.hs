@@ -83,12 +83,12 @@ _validatePlay _ Prince NoEffect = return NoEffect
 _validatePlay _ card play = throwError (BadActionForCard play card)
 
 
--- | Return all valid plays.
-getValidPlays :: target -- ^ The current player
-                 -> [target] -- ^ All other active players in the round
-                 -> Card -- ^ The card they wish to play
-                 -> [Play target] -- ^ All valid plays for that card
-getValidPlays self others card =
+-- | Return all valid plays for a particular card.
+getValidPlaysForCard :: target -- ^ The current player
+                     -> [target] -- ^ All other active players in the round
+                     -> Card -- ^ The card they wish to play
+                     -> [Play target] -- ^ All valid plays for that card
+getValidPlaysForCard self others card =
   case card of
    Soldier   -> [Guess tgt c | tgt <- others, c <- [Clown ..]]
    Clown     -> fmap Attack others
@@ -98,6 +98,22 @@ getValidPlays self others card =
    General   -> fmap Attack others
    Minister  -> [NoEffect]
    Prince    -> [NoEffect]
+
+
+-- | Return all valid plays for a hand.
+--
+-- If the hand is one that would bust out (see 'bustingHand') then returns an
+-- empty list.
+getValidPlays :: player -- ^ The current player
+              -> [player] -- ^ All other active players in the round
+              -> Card -- ^ The card they were dealt
+              -> Card -- ^ The card that was in their hand
+              -> [(Card, Play player)] -- ^ All valid plays
+getValidPlays self others dealt hand = do
+  guard $ not $ bustingHand dealt hand
+  [(dealt, play) | play <- playsForCard dealt] ++
+    [(hand, play) | play <-playsForCard hand]
+  where playsForCard = getValidPlaysForCard self others
 
 
 -- | If you're holding the Minister, there's a potential to "bust out" -- to

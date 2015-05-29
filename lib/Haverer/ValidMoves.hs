@@ -23,7 +23,7 @@ module Haverer.ValidMoves (
 
 import BasicPrelude hiding (round)
 
-import Haverer.Action (bustingHand, getTarget, getValidPlays, Play)
+import Haverer.Action (getTarget, getValidPlays, Play)
 import Haverer.Deck (Card)
 import Haverer.Player (isProtected)
 import Haverer.Round (
@@ -38,11 +38,7 @@ getValidMoves :: Ord playerId => Round playerId -> [(Card, Play playerId)]
 getValidMoves round =
   case currentTurn round of
    Nothing -> []
-   Just (pid, (dealt, hand))
-     | bustingHand dealt hand -> []
-     | otherwise ->
-         [(dealt, play) | play <- getValidPlays pid otherPlayers dealt] ++
-         [(hand, play) | play <- getValidPlays pid otherPlayers hand]
+   Just (pid, (dealt, hand)) -> getValidPlays pid otherPlayers dealt hand
      where otherPlayers = delete pid $ getActivePlayers round
 
 
