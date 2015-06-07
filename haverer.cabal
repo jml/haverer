@@ -17,17 +17,20 @@
 
 name:                haverer
 version:             0.1.0.0
--- synopsis:            
+synopsis:            Implementation of the rules of Love Letter
 description:         Implementation of the rules of Love Letter
 license:             Apache-2.0
 license-file:        LICENSE
-author:              Jonathan Lange
+author:              Jonathan M. Lange <jml@mumak.net>
 maintainer:          jml@mumak.net
--- copyright:           
+copyright:           Jonathan M. Lange
 category:            Game
 build-type:          Simple
--- extra-source-files:  
 cabal-version:       >=1.10
+
+source-repository head
+  type: git
+  location: git@github.com:jml/haverer.git
 
 library
   hs-source-dirs: lib
@@ -61,7 +64,6 @@ library
 
 executable haverer
   main-is:             Main.hs
-  -- other-extensions:    
   build-depends:       base >=4.8 && <4.9
                      , haverer
                      , basic-prelude >= 0.4.1 && < 0.5
