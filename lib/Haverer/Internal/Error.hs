@@ -22,7 +22,6 @@ module Haverer.Internal.Error (
   ) where
 
 import BasicPrelude
-import qualified Data.Text as Text
 
 
 -- | Assert that the value is Right. Throws error if it's Left.
@@ -35,7 +34,3 @@ assertRight message (Left e) = terror $ message ++ show e
 assertRight' :: Show a => Either a b -> b
 assertRight' (Right value) = value
 assertRight' (Left e) = (terror . show) e
-
--- | Like `error`, but for Text.
-terror :: Text -> b
-terror = error . Text.unpack

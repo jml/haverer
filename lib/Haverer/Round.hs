@@ -88,7 +88,7 @@ import Haverer.Player (
   unprotect
   )
 
-import Haverer.Internal.Error (assertRight, terror)
+import Haverer.Internal.Error (assertRight)
 import Haverer.Internal.Ring (Ring, advance1, currentItem, dropItem1, makeRing, nextItem)
 import qualified Haverer.Internal.Ring as Ring
 
