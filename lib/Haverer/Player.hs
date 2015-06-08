@@ -28,6 +28,7 @@ module Haverer.Player (
   PlayerSet,
   playCard,
   protect,
+  randomize,
   rotate,
   swapHands,
   toPlayers,
@@ -38,6 +39,8 @@ module Haverer.Player (
 import BasicPrelude
 import Control.Lens hiding (chosen)
 import Control.Monad.Except
+import Control.Monad.Random
+import System.Random.Shuffle
 
 import Haverer.Deck (Card)
 
@@ -61,9 +64,18 @@ toPlayerSet playerIds
 --
 -- The player who was first is now last, whoever was second is now third,
 -- whoever was third is now second, etc.
+--
+-- Since 0.3
 rotate :: PlayerSet a -> PlayerSet a
 rotate (PlayerSet (x:xs)) = PlayerSet (xs ++ [x])
 rotate _ = error "Empty PlayerSet is impossible"
+
+
+-- | Randomize the order of the PlayerSet
+--
+-- Since 0.3
+randomize :: MonadRandom m => PlayerSet a -> m (PlayerSet a)
+randomize = map PlayerSet . shuffleM . toPlayers
 
 
 data Player = Active {
