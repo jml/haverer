@@ -23,7 +23,12 @@ import BasicPrelude
 
 import qualified Data.Set as Set
 
-import Haverer.PlayerSet (toPlayerSet, toPlayers, PlayerSetError(..))
+import Haverer.PlayerSet (
+  rotate,
+  toPlayerSet,
+  toPlayers,
+  PlayerSet,
+  PlayerSetError(..))
 import Haverer.Testing (shuffled)
 
 import Test.Tasty
@@ -60,6 +65,14 @@ vectorWithDuplicates n = do
   vectorWithDuplicates' n numDupes
 
 
+prop_rotatePreservesMembers :: PlayerSet Int -> Bool
+prop_rotatePreservesMembers x = sort (toPlayers x) == sort (toPlayers (rotate x))
+
+
+prop_rotateCyclesRound :: PlayerSet Int -> Bool
+prop_rotateCyclesRound x = iterate rotate x !! length (toPlayers x) == x
+
+
 suite :: TestTree
 suite = testGroup "Haverer.PlayerSet" [
   testGroup "QuickCheck tests"
@@ -74,5 +87,7 @@ suite = testGroup "Haverer.PlayerSet" [
   , testProperty "all unique groups with 2-4 players are good" $
     forAll (choose (2, 4) >>= uniqueVector) $
     \xs -> (toPlayers <$> toPlayerSet (xs :: [Int])) == Right xs
+  , testProperty "rotate preserves members" prop_rotatePreservesMembers
+  , testProperty "rotating n times loops around" prop_rotateCyclesRound
   ]
   ]
