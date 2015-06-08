@@ -1,4 +1,8 @@
+# 0.3.0.0 - 2015-06-08
 
+* `PlayerSet` moved to new module, `Haverer.PlayerSet`
+* `PlayerSet` now implements `Foldable` and `Traversable`
+* New `rotate` and `randomize` methods for `PlayerSet`
 
 # 0.2.0.0 - 2015-06-08
 
