@@ -17,7 +17,7 @@
 
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
-module Player (suite) where
+module PlayerSet (suite) where
 
 import BasicPrelude
 
