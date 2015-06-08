@@ -35,6 +35,7 @@ import Control.Monad.Random (MonadRandom)
 import Haverer.Deck (FullDeck, newDeck)
 import Haverer.Player (
   PlayerSet,
+  rotate,
   toPlayers,
   )
 import Haverer.Round (Round)
@@ -75,11 +76,15 @@ newRound :: (Functor m, MonadRandom m, Ord playerId, Show playerId) => Game play
 newRound game = newRound' game <$> newDeck
 
 -- | Indicate that the specified players won.
+--
+-- Since 0.3, will also rotate the order of play, so the person to the left of
+-- the previous first person is now the first.
 playersWon :: Ord playerId => Game playerId -> [playerId] -> Either (Outcome playerId) (Game playerId)
 playersWon game ps =
-  bumpRoundsPlayed <$> onCounter game (`Counter.incrementMany` ps)
+  rotatePlayers . bumpRoundsPlayed <$> onCounter game (`Counter.incrementMany` ps)
   where
     bumpRoundsPlayed g = g { _roundsPlayed = _roundsPlayed g + 1 }
+    rotatePlayers g = g { _playerSet = rotate (_playerSet g) }
 
 -- | Return the number of rounds played.
 roundsPlayed :: Game playerId -> Int

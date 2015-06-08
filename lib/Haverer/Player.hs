@@ -28,6 +28,7 @@ module Haverer.Player (
   PlayerSet,
   playCard,
   protect,
+  rotate,
   swapHands,
   toPlayers,
   toPlayerSet,
@@ -54,6 +55,15 @@ toPlayerSet playerIds
   | otherwise = (return . PlayerSet) playerIds
   where numPlayers = length playerIds
         numDistinctPlayers = (length . nub . sort) playerIds
+
+
+-- | Rotate the order of the PlayerSet
+--
+-- The player who was first is now last, whoever was second is now third,
+-- whoever was third is now second, etc.
+rotate :: PlayerSet a -> PlayerSet a
+rotate (PlayerSet (x:xs)) = PlayerSet (xs ++ [x])
+rotate _ = error "Empty PlayerSet is impossible"
 
 
 data Player = Active {
