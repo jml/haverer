@@ -17,7 +17,6 @@
 
 module Haverer.Player (
   bust,
-  Error(..),
   discardAndDraw,
   eliminate,
   getDiscards,
@@ -25,57 +24,17 @@ module Haverer.Player (
   isProtected,
   makePlayer,
   Player,
-  PlayerSet,
   playCard,
   protect,
-  randomize,
-  rotate,
   swapHands,
-  toPlayers,
-  toPlayerSet,
   unprotect
   ) where
 
 import BasicPrelude
 import Control.Lens hiding (chosen)
-import Control.Monad.Except
-import Control.Monad.Random
-import System.Random.Shuffle
 
 import Haverer.Deck (Card)
 
-
-data Error a = InvalidNumPlayers Int | DuplicatePlayers [a] deriving (Show, Eq)
-
-
-newtype PlayerSet a = PlayerSet { toPlayers :: [a] } deriving (Show, Eq)
-
-
-toPlayerSet :: Ord a => [a] -> Either (Error a) (PlayerSet a)
-toPlayerSet playerIds
-  | numPlayers /= numDistinctPlayers = throwError (DuplicatePlayers playerIds)
-  | numPlayers < 2 || numPlayers > 4 = throwError (InvalidNumPlayers numPlayers)
-  | otherwise = (return . PlayerSet) playerIds
-  where numPlayers = length playerIds
-        numDistinctPlayers = (length . nub . sort) playerIds
-
-
--- | Rotate the order of the PlayerSet
---
--- The player who was first is now last, whoever was second is now third,
--- whoever was third is now second, etc.
---
--- Since 0.3
-rotate :: PlayerSet a -> PlayerSet a
-rotate (PlayerSet (x:xs)) = PlayerSet (xs ++ [x])
-rotate _ = error "Empty PlayerSet is impossible"
-
-
--- | Randomize the order of the PlayerSet
---
--- Since 0.3
-randomize :: MonadRandom m => PlayerSet a -> m (PlayerSet a)
-randomize = map PlayerSet . shuffleM . toPlayers
 
 
 data Player = Active {

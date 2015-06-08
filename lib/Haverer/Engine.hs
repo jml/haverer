@@ -31,7 +31,7 @@ import Haverer.Action (Play)
 import Haverer.Deck (Card)
 import qualified Haverer.Game as Game
 import qualified Haverer.Round as Round
-import Haverer.Player (PlayerSet)
+import Haverer.PlayerSet (PlayerSet)
 
 
 class Monad m => MonadEngine m playerId where

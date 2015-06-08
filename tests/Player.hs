@@ -23,7 +23,7 @@ import BasicPrelude
 
 import qualified Data.Set as Set
 
-import Haverer.Player (toPlayerSet, toPlayers, Error(..))
+import Haverer.PlayerSet (toPlayerSet, toPlayers, Error(..))
 import Haverer.Testing (shuffled)
 
 import Test.Tasty
@@ -61,7 +61,7 @@ vectorWithDuplicates n = do
 
 
 suite :: TestTree
-suite = testGroup "Haverer.Player" [
+suite = testGroup "Haverer.PlayerSet" [
   testGroup "QuickCheck tests"
   [ testProperty "one player maketh not a set" $
     forAll (vector 1) $ \x -> toPlayerSet (x :: [Int]) == Left (InvalidNumPlayers 1)

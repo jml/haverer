@@ -33,7 +33,8 @@ import qualified Data.Map as Map
 
 import Haverer.Action (Play(..), viewAction)
 import Haverer.Deck (Card(..))
-import Haverer.Player (PlayerSet, getDiscards, isProtected, toPlayers)
+import Haverer.Player (getDiscards, isProtected)
+import Haverer.PlayerSet (PlayerSet, toPlayers)
 import Haverer.Round (
   Event(..),
   Result(..),

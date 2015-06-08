@@ -56,6 +56,7 @@ library
                  , Haverer.Internal.Error
                  , Haverer.Internal.Ring
                  , Haverer.Player
+                 , Haverer.PlayerSet
                  , Haverer.Round
                  , Haverer.Testing
                  , Haverer.ValidMoves

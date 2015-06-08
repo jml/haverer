@@ -33,7 +33,7 @@ import BasicPrelude
 import Control.Monad.Random (MonadRandom)
 
 import Haverer.Deck (FullDeck, newDeck)
-import Haverer.Player (
+import Haverer.PlayerSet (
   PlayerSet,
   rotate,
   toPlayers,

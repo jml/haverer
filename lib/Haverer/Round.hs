@@ -84,12 +84,15 @@ import Haverer.Player (
   makePlayer,
   playCard,
   Player,
-  PlayerSet,
   protect,
   swapHands,
-  toPlayers,
   unprotect
   )
+import Haverer.PlayerSet (
+  PlayerSet,
+  toPlayers
+  )
+
 
 import Haverer.Internal.Error (assertRight)
 import Haverer.Internal.Ring (Ring, advance1, currentItem, dropItem1, makeRing, nextItem)

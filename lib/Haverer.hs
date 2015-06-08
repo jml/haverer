@@ -47,6 +47,7 @@ module Haverer (
   getDiscards,
   getHand,
   isProtected,
+  PlayerSet,
   toPlayers,
   toPlayerSet,
   ) where
@@ -68,9 +69,12 @@ import Haverer.Player (
   Player,
   getDiscards,
   getHand,
-  isProtected,
+  isProtected)
+import Haverer.PlayerSet (
+  PlayerSet,
   toPlayers,
-  toPlayerSet)
+  toPlayerSet
+  )
 import Haverer.Round (
   BadAction,
   Result(..),

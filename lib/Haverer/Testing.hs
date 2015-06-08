@@ -34,7 +34,7 @@ import Test.Tasty.QuickCheck
 
 import Haverer.Action (Play(..))
 import Haverer.Deck (baseCards, Card(..), FullDeck, makeDeck)
-import Haverer.Player (PlayerSet, toPlayerSet)
+import Haverer.PlayerSet (PlayerSet, toPlayerSet)
 import Haverer.Round (
   Round
   , Result(..)
