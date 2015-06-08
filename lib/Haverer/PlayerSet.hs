@@ -12,6 +12,7 @@
 -- See the License for the specific language governing permissions and
 -- limitations under the License.
 
+{-# LANGUAGE DeriveTraversable #-}
 {-# LANGUAGE NoImplicitPrelude #-}
 
 module Haverer.PlayerSet (
@@ -27,13 +28,15 @@ module Haverer.PlayerSet (
 import BasicPrelude
 import Control.Monad.Except
 import Control.Monad.Random
+import Data.Foldable (Foldable)
+import Data.Traversable (Traversable)
 import System.Random.Shuffle
 
 
 data PlayerSetError a = InvalidNumPlayers Int | DuplicatePlayers [a] deriving (Show, Eq)
 
 
-newtype PlayerSet a = PlayerSet { toPlayers :: [a] } deriving (Show, Eq)
+newtype PlayerSet a = PlayerSet { toPlayers :: [a] } deriving (Show, Eq, Functor, Traversable, Foldable)
 
 
 toPlayerSet :: Ord a => [a] -> Either (PlayerSetError a) (PlayerSet a)
