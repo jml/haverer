@@ -16,7 +16,7 @@
 -- see http://haskell.org/cabal/users-guide/
 
 name:                haverer
-version:             0.1.0.0
+version:             0.2.0.0
 synopsis:            Implementation of the rules of Love Letter
 description:         Implementation of the rules of Love Letter
 license:             Apache-2.0
