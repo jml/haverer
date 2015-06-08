@@ -43,6 +43,7 @@ module Haverer.Round (
 
     -- The outcome of a Round
   , Victory(..)
+  , survivors
   , victory
 
     -- Properties used for testing that rely on unexposed fields.
@@ -410,19 +411,21 @@ data Victory playerId
   deriving (Eq, Show)
 
 
--- | The currently surviving players in the round, with their cards.
-survivors :: Round playerId -> [(playerId, Card)]
-survivors = Map.toList . Map.mapMaybe getHand . view players
-
-
 -- | If the Round is Over, return the Victory data. Otherwise, Nothing.
 victory :: Round playerId -> Maybe (Victory playerId)
 victory (round@Round { _roundState = Over }) =
-  case survivors round of
+  case survivors' round of
    [(pid, card)] -> Just $ SoleSurvivor pid card
    xs -> let (best:rest) = reverse (groupBy ((==) `on` snd) (sortBy (compare `on` snd) xs))
          in Just $ HighestCard (snd $ head best) (map fst best) (concat rest)
+  where survivors' = Map.toList . Map.mapMaybe getHand . view players
 victory _ = Nothing
+
+
+-- | The currently surviving players in the round, with their cards.
+survivors :: Victory playerId -> [(playerId, Card)]
+survivors (SoleSurvivor pid card) = [(pid, card)]
+survivors (HighestCard topCard topPlayers rest) = zip topPlayers (repeat topCard) ++ rest
 
 
 getWinners :: Victory playerId -> [playerId]
