@@ -12,6 +12,7 @@
 -- See the License for the specific language governing permissions and
 -- limitations under the License.
 
+{-# LANGUAGE DataKinds #-}
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TemplateHaskell #-}
@@ -71,7 +72,7 @@ import Haverer.Action (
   getTarget,
   playToAction,
   viewAction)
-import Haverer.Deck (Card(..), Complete, Deck, deal, Incomplete, pop)
+import Haverer.Deck (Card(..), Deck, DeckSize(..), FullDeck, deal, pop)
 import qualified Haverer.Deck as Deck
 import Haverer.Player (
   bust,
@@ -100,7 +101,7 @@ data RoundState = NotStarted | Turn Card | Playing | Over deriving Show
 
 
 data Round playerId = Round {
-  _stack :: Deck Incomplete,
+  _stack :: Deck 'Incomplete,
   _playOrder :: Ring playerId,
   _players :: Map playerId Player,
   _roundState :: RoundState,
@@ -112,7 +113,7 @@ makeLenses ''Round
 
 
 -- | Make a new round, given a complete Deck and a set of players.
-makeRound :: (Ord playerId, Show playerId) => Deck Complete -> PlayerSet playerId -> Round playerId
+makeRound :: (Ord playerId, Show playerId) => FullDeck -> PlayerSet playerId -> Round playerId
 makeRound deck playerSet =
   nextTurn $ case deal deck (length playerList) of
    (Just cards, remainder) ->

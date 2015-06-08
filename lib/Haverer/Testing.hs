@@ -33,7 +33,7 @@ import qualified System.Random.Shuffle as Shuffle
 import Test.Tasty.QuickCheck
 
 import Haverer.Action (Play(..))
-import Haverer.Deck (baseCards, Card(..), Complete, Deck, makeDeck)
+import Haverer.Deck (baseCards, Card(..), FullDeck, makeDeck)
 import Haverer.Player (PlayerSet, toPlayerSet)
 import Haverer.Round (
   Round
@@ -48,7 +48,7 @@ import Haverer.Internal.Error (assertRight)
 type PlayerId = Int
 
 
-instance Arbitrary (Deck Complete) where
+instance Arbitrary FullDeck where
   -- | An arbitrary complete deck is a shuffled set of cards.
   arbitrary = fmap (fromJust . makeDeck) (shuffled baseCards)
 

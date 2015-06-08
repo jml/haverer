@@ -32,7 +32,7 @@ module Haverer.Game (
 import BasicPrelude
 import Control.Monad.Random (MonadRandom)
 
-import Haverer.Deck (Deck, Complete, newDeck)
+import Haverer.Deck (FullDeck, newDeck)
 import Haverer.Player (
   PlayerSet,
   toPlayers,
@@ -67,7 +67,7 @@ makeGame ps = Game {
   }
 
 -- | Start a new round of the game with an already-shuffled deck of cards.
-newRound' :: (Ord playerId, Show playerId) => Game playerId -> Deck Complete -> Round playerId
+newRound' :: (Ord playerId, Show playerId) => Game playerId -> FullDeck -> Round playerId
 newRound' game deck = Round.makeRound deck (_playerSet game)
 
 -- | Start a new round of the game, shuffling the deck cards ourselves.

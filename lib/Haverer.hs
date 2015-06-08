@@ -38,7 +38,8 @@ module Haverer (
   currentTurn,
   Card(..),
   Deck,
-  Complete,
+  DeckSize(..),
+  FullDeck,
   newDeck,
   Play(..),
   viewAction,
@@ -52,7 +53,7 @@ module Haverer (
 
 
 import Haverer.Action (Play(..), viewAction)
-import Haverer.Deck (Card(..), Complete, Deck, newDeck)
+import Haverer.Deck (Card(..), Deck, DeckSize(..), FullDeck, newDeck)
 import Haverer.Game (
   Game,
   finalScores,
