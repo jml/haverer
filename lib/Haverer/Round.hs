@@ -33,6 +33,7 @@ module Haverer.Round (
   , currentPlayer
   , currentTurn
   , getActivePlayers
+  , getBurnCard
   , getPlayer
   , getPlayerMap
   , getPlayers
@@ -156,6 +157,16 @@ getPlayerMap = view players
 -- | Get the player with the given ID. Nothing if there is no such player.
 getPlayer :: Ord playerId => Round playerId -> playerId -> Maybe Player
 getPlayer round pid = view (players . at pid) round
+
+
+-- | Get the burn card for the Round. Only possible when the Round is over.
+--
+-- Since 0.1.1
+getBurnCard :: Round playerId -> Maybe Card
+getBurnCard round =
+  case view roundState round of
+   Over -> Just $ view burn round
+   _ -> Nothing
 
 
 -- | Draw a card from the top of the Deck. Returns the card and a new Round.
