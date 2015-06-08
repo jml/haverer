@@ -23,7 +23,7 @@ import BasicPrelude
 
 import qualified Data.Set as Set
 
-import Haverer.PlayerSet (toPlayerSet, toPlayers, Error(..))
+import Haverer.PlayerSet (toPlayerSet, toPlayers, PlayerSetError(..))
 import Haverer.Testing (shuffled)
 
 import Test.Tasty

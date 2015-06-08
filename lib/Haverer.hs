@@ -48,6 +48,7 @@ module Haverer (
   getHand,
   isProtected,
   PlayerSet,
+  PlayerSetError(..),
   toPlayers,
   toPlayerSet,
   ) where
@@ -71,6 +72,7 @@ import Haverer.Player (
   getHand,
   isProtected)
 import Haverer.PlayerSet (
+  PlayerSetError(..),
   PlayerSet,
   toPlayers,
   toPlayerSet

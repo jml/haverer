@@ -16,7 +16,7 @@
 
 module Haverer.PlayerSet (
   PlayerSet
-  , Error(..)
+  , PlayerSetError(..)
   , toPlayerSet
   , toPlayers
   , randomize
@@ -30,13 +30,13 @@ import Control.Monad.Random
 import System.Random.Shuffle
 
 
-data Error a = InvalidNumPlayers Int | DuplicatePlayers [a] deriving (Show, Eq)
+data PlayerSetError a = InvalidNumPlayers Int | DuplicatePlayers [a] deriving (Show, Eq)
 
 
 newtype PlayerSet a = PlayerSet { toPlayers :: [a] } deriving (Show, Eq)
 
 
-toPlayerSet :: Ord a => [a] -> Either (Error a) (PlayerSet a)
+toPlayerSet :: Ord a => [a] -> Either (PlayerSetError a) (PlayerSet a)
 toPlayerSet playerIds
   | numPlayers /= numDistinctPlayers = throwError (DuplicatePlayers playerIds)
   | numPlayers < 2 || numPlayers > 4 = throwError (InvalidNumPlayers numPlayers)
