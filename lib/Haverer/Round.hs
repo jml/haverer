@@ -116,16 +116,14 @@ makeLenses ''Round
 makeRound :: (Ord playerId, Show playerId) => FullDeck -> PlayerSet playerId -> Round playerId
 makeRound deck playerSet =
   nextTurn $ case deal deck (length playerList) of
-   (Just cards, remainder) ->
-     case pop remainder of
-      (Nothing, _) -> terror ("Not enough cards for burn: " ++ show deck)
-      (Just burn', stack') -> Round {
-        _stack = stack',
-        _playOrder = fromJust (makeRing playerList),
-        _players = Map.fromList $ zip playerList (map makePlayer cards),
-        _roundState = NotStarted,
-        _burn = burn'
-        }
+   Just (burn', cards, stack') ->
+     Round {
+       _stack = stack',
+       _playOrder = fromJust (makeRing playerList),
+       _players = Map.fromList $ zip playerList (map makePlayer cards),
+       _roundState = NotStarted,
+       _burn = burn'
+       }
    _ -> terror ("Given a complete deck - " ++ show deck ++ "- that didn't have enough cards for players - " ++ show playerSet)
   where playerList = toPlayers playerSet
 

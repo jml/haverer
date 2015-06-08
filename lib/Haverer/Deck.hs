@@ -91,11 +91,14 @@ pop :: Deck a -> (Maybe Card, Deck 'Incomplete)
 pop (Deck []) = (Nothing, Deck [])
 pop (Deck (c:cards)) = (Just c, Deck cards)
 
-deal :: Deck a -> Int -> (Maybe [Card], Deck 'Incomplete)
-deal (Deck cards) n =
+
+deal :: FullDeck -> Int -> Maybe (Card, [Card], Deck 'Incomplete)
+deal (Deck (burn:cards)) n =
   case splitAt n cards of
-   (_, []) -> (Nothing, Deck cards)
-   (top, rest) -> (Just top, Deck rest)
+   (_, []) -> Nothing
+   (top, rest) -> Just (burn, top, Deck rest)
+deal (Deck _) _ = Nothing
+
 
 toList :: Deck a -> [Card]
 toList (Deck xs) = xs
