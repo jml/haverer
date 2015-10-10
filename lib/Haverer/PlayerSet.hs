@@ -28,8 +28,6 @@ module Haverer.PlayerSet (
 import BasicPrelude
 import Control.Monad.Except
 import Control.Monad.Random
-import Data.Foldable (Foldable)
-import Data.Traversable (Traversable)
 import System.Random.Shuffle
 
 

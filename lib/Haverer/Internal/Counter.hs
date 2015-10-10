@@ -25,7 +25,6 @@ module Haverer.Internal.Counter (
   ) where
 
 import BasicPrelude
-import Prelude (Foldable)
 
 import qualified Data.Map as Map
 
