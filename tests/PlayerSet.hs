@@ -35,11 +35,6 @@ import Test.Tasty
 import Test.Tasty.QuickCheck
 
 
-instance (Ord a, Arbitrary a) => Arbitrary (Set.Set a) where
-  arbitrary = sized $ \n -> do k <- choose (0, n)
-                               sizedSet k
-
-
 sizedSet :: (Arbitrary a, Ord a) => Int -> Gen (Set.Set a)
 sizedSet 0 = return Set.empty
 sizedSet n = do

@@ -2,3 +2,4 @@
 /cabal.sandbox.config
 /.cabal-sandbox/
 /result
+/.stack-work/
