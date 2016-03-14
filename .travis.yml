@@ -11,9 +11,12 @@ cache:
   - $HOME/.cabal
   - $HOME/.stack
 
+addons:
+  apt:
+    packages:
+    - libgmp3-dev
+
 before_install:
-- sudo apt-get -qq update
-- sudo apt-get install -y libgmp3-dev
 # Download and unpack the stack executable
 - export PATH=/opt/ghc/$GHCVER/bin:/opt/cabal/$CABALVER/bin:$HOME/.local/bin:$PATH
 - mkdir -p ~/.local/bin
