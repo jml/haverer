@@ -12,19 +12,15 @@ cache:
   - $HOME/.stack
 
 before_install:
-# Using compiler above sets CC to an invalid value, so unset it
-- unset CC
-
-# We want to always allow newer versions of packages when building on GHC HEAD
-- CABALARGS=""
-
+- sudo apt-get -qq update
+- sudo apt-get install -y libgmp3-dev
 # Download and unpack the stack executable
 - export PATH=/opt/ghc/$GHCVER/bin:/opt/cabal/$CABALVER/bin:$HOME/.local/bin:$PATH
 - mkdir -p ~/.local/bin
 - curl -L https://www.stackage.org/stack/linux-x86_64 | tar xz --wildcards --strip-components=1 -C ~/.local/bin '*/stack'
 
 install:
--  stack --no-terminal --install-ghc $ARGS test --only-dependencies
+- stack --no-terminal --install-ghc $ARGS test --only-dependencies
 
 script:
 - stack --no-terminal $ARGS test --haddock --no-haddock-deps
